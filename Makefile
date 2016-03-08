@@ -8,18 +8,18 @@ LDFLAGS=-L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas #-lstdc++ -lpthread
 SRC=src
 OBJ=obj
 
-SOURCES=vector_add.cu
-OBJECTS:=$(addprefix $(OBJ)/, $(addsuffix .o,$(basename $(SOURCES))))
+SOURCES=vector_add.cu \
+    vector_add_stream.cu
 
-BIN=vector_add
+OBJECTS:=$(addprefix $(OBJ)/, $(addsuffix .o,$(basename $(SOURCES))))
 
 #vpath %.h include/
 vpath %.cc src/
 vpath %.cu src/
 
-.PHONY: dir clean
+.PHONY: dir exe clean
 
-all: dir $(BIN)
+all: dir exe
 
 dir:
 	mkdir -p $(OBJ)
@@ -30,8 +30,8 @@ $(OBJ)/%.o: %.cc
 $(OBJ)/%.o : %.cu
 	$(NVCC) -c -o $@ $<
 
-$(BIN): $(OBJECTS)
-	$(CXX) -o $@ $^ $(LDFLAGS) 
+exe: $(OBJECTS)
+	$(CXX) -o test.ext $^ $(LDFLAGS) 
 
 clean:
 	rm -rf $(OBJ)

@@ -1,4 +1,6 @@
-#include	<wb.h>
+#include <cstdlib>
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 #define SegSize 256
 
@@ -10,19 +12,16 @@ __global__ void vecAdd(float * in1, float * in2, float * out, int len) {
 }
 
 int main(int argc, char ** argv) {
-    wbArg_t args;
     int inputLength;
     float * hostInputA;
     float * hostInputB;
     float * hostOutput;
 
-    args = wbArg_read(argc, argv);
+    //args = wbArg_read(argc, argv);
 
-    wbTime_start(Generic, "Importing data and creating memory on host");
-    hostInputA = (float *) wbImport(wbArg_getInputFile(args, 0), &inputLength);
-    hostInputB = (float *) wbImport(wbArg_getInputFile(args, 1), &inputLength);
+    //hostInputA = (float *) wbImport(wbArg_getInputFile(args, 0), &inputLength);
+    //hostInputB = (float *) wbImport(wbArg_getInputFile(args, 1), &inputLength);
     hostOutput = (float *) malloc(inputLength * sizeof(float));
-    wbTime_stop(Generic, "Importing data and creating memory on host");
 	
 	cudaStream_t stream0, stream1, stream2, stream3;
 	cudaStreamCreate(&stream0);
@@ -73,8 +72,6 @@ int main(int argc, char ** argv) {
 	}
 	cudaDeviceSynchronize();
 	
-    wbSolution(args, hostOutput, inputLength);
-
 	cudaFree(d_A0);
 	cudaFree(d_B0);
 	cudaFree(d_C0);

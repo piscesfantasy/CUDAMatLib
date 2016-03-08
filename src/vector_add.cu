@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <cuda.h>
 #include <cuda_runtime.h>
-/*#include <cuda_runtime_api.h>
+/*#include <cuda_runtime_api.h>*/
 
 using namespace std;
 
@@ -9,10 +9,9 @@ __global__ void vecAdd(float *in1, float *in2, float *out, int len) {
     //@@ Insert code to implement vector addition here
     int idx=blockIdx.x*blockDim.x+threadIdx.x;
     if (idx < len){out[idx]=in1[idx]+in2[idx];}
-}*/
+}
 
 int main(int argc, char **argv) {
-/*
     //wbArg_t args;
     int inputLength;
     float *hostInput1;
@@ -57,6 +56,6 @@ int main(int argc, char **argv) {
     free(hostInput1);
     free(hostInput2);
     free(hostOutput);
-*/
+
     return 0;
 }
