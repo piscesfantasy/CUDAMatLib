@@ -1,5 +1,5 @@
-#ifndef CUDA_DEVICE_H
-#define CUDA_DEVICE_H
+#ifndef CUDA_ARRAY_KERNEL_H
+#define CUDA_ARRAY_KERNEL_H
 
 #include <cstdlib>
 #include <cuda.h>

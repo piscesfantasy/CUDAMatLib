@@ -8,7 +8,7 @@ INCLUDE=-I /usr/local/cuda/samples/common/inc/ -I /usr/local/cuda/include -I inc
 SRC=src
 OBJ=obj
 
-SOURCES=test.cu
+SOURCES=test_array.cu
 
 OBJECTS:=$(addprefix $(OBJ)/, $(addsuffix .o,$(basename $(SOURCES))))
 
