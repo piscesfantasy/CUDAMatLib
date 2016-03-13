@@ -3,8 +3,11 @@
 
 #include "cuda_array_kernel.h"
 #include <stdio.h>
+#include <iostream>
+#include <vector>
 
-#define SegSize 256
+#define SEGSIZE 256
+#define BLKSIZE 16
 
 using namespace std;
 
@@ -24,55 +27,71 @@ template <typename Type>
 class CUDA_array
 {
     public:
-        CUDA_array(){}
-        CUDA_array(Type* data, const int& l)
+        CUDA_array(const int& l) : _len(l)
         {
-            setValue(data, l);
+            _val = new Type[_len];
         }
-        CUDA_array(const vector<Type>& data)
+
+        CUDA_array(Type* data, const int& l) : _len(l)
         {
-            setValue(&data[0], data.size());
+            _val = new Type[_len];
+            setValue(data);
         }
-        virtual ~CUDA_array() {if (_val!=NULL) delete [] _val;}
+
+        CUDA_array(const vector<Type>& data) : _len(data.size())
+        {
+            _val = new Type[_len];
+            setValue(&data[0]);
+        }
+
+        virtual ~CUDA_array()
+        {
+            if (_val!=NULL)
+                delete [] _val;
+        }
 
         Type &operator[](const size_t idx){ return _val[idx]; }
-        size_type len() const{ return _len; }
-        Type* getValue() const{ return __val; }
-        void setValue(Type* data, const size_type& l)
+
+        int len() const{ return _len; }
+
+        Type* getValue() const{ return _val; }
+
+        void setValue(Type* data)
         {
-            _len = l;
-            _val = new Type[_len];
             for (int i=0; i<_len; ++i)
                 _val[i] = data[i];
         }
 
-        void add( CUDA_array<Type> const&);
-        void add_stream( CUDA_array<Type> const&);
+        int add( CUDA_array<Type> const&);
+        int add_stream( CUDA_array<Type> const&);
 
     private:
         Type* _val;
-        size_type _len;
+        int _len;
 };
 
 template <typename Type>
-void CUDA_array<Type>::add(CUDA_array<Type> const &input)
+int CUDA_array<Type>::add(CUDA_array<Type> const &input)
 {
     if (input.len()!=_len)
-        return;
+    {
+        cerr<<"ERROR: can't add arrays with different length"<<endl;
+        return 1;
+    }
 
     Type *d_in1, *d_in2, *d_out;
 
-    cudaMalloc((void**) &d_in1, len*sizeof(Type));
-    cudaMalloc((void**) &d_in2, len*sizeof(Type));
-    cudaMalloc((void**) &d_out, len*sizeof(Type));
+    cudaMalloc((void**) &d_in1, _len*sizeof(Type));
+    cudaMalloc((void**) &d_in2, _len*sizeof(Type));
+    cudaMalloc((void**) &d_out, _len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::add");
 
     cudaMemcpy(d_in1, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
     cudaMemcpy(d_in2, input.getValue(), _len*sizeof(Type), cudaMemcpyHostToDevice);
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::add");
 
-    dim3 grid((_len-1)/8+1, 1, 1);
-    dim3 block(8, 1, 1);
+    dim3 grid((_len-1)/BLKSIZE+1, 1, 1);
+    dim3 block(BLKSIZE, 1, 1);
 
     vecAdd<Type><<<grid, block>>>(d_in1, d_in2, d_out, _len);
     cudaDeviceSynchronize();
@@ -83,23 +102,28 @@ void CUDA_array<Type>::add(CUDA_array<Type> const &input)
     cudaFree(d_in1);
     cudaFree(d_in2);
     cudaFree(d_out);
+
+    return 0;
 }
 
 template <typename Type>
-void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
+int CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
 {
     if (input.len()!=_len)
-        return;
+    {
+        cerr<<"ERROR: can't add arrays with different length"<<endl;
+        return 1;
+    }
 
     Type *addend = input.getValue();
-    hostOutput = (Type *) malloc(_len * sizeof(Type));
-	
+    Type *ans = (Type *) malloc(_len * sizeof(Type));
+
     cudaStream_t stream0, stream1, stream2, stream3;
     cudaStreamCreate(&stream0);
     cudaStreamCreate(&stream1);
     cudaStreamCreate(&stream2);
     cudaStreamCreate(&stream3);
-    
+
     Type *d_A0, *d_B0, *d_C0;// device memory for stream 0
     Type *d_A1, *d_B1, *d_C1;// device memory for stream 1
     Type *d_A2, *d_B2, *d_C2;// device memory for stream 0
@@ -117,30 +141,30 @@ void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
     cudaMalloc((void**) &d_A3, _len*sizeof(Type));
     cudaMalloc((void**) &d_B3, _len*sizeof(Type));
     cudaMalloc((void**) &d_C3, _len*sizeof(Type));
-    
-    for (int bias=0; bias<_len; bias+=SegSize*4)
+
+    for (int bias=0; bias<_len; bias+=SEGSIZE*4)
     {
-        cudaMemcpyAsync(d_A0, _val+bias, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream0);
-        cudaMemcpyAsync(d_B0, addend+bias, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream0);
+        cudaMemcpyAsync(d_A0, _val+bias, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream0);
+        cudaMemcpyAsync(d_B0, addend+bias, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream0);
 
-        cudaMemcpyAsync(d_A1, _val+bias+SegSize, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream1);
-        cudaMemcpyAsync(d_B1, addend+bias+SegSize, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream1);
-        vecAdd<<<SegSize/16, 16, 0, stream0>>>(d_A0, d_B0, d_C0, _len);
+        cudaMemcpyAsync(d_A1, _val+bias+SEGSIZE, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream1);
+        cudaMemcpyAsync(d_B1, addend+bias+SEGSIZE, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream1);
+        vecAdd<<<SEGSIZE/BLKSIZE, BLKSIZE, 0, stream0>>>(d_A0, d_B0, d_C0, _len);
 
-        cudaMemcpyAsync(d_A2, _val+bias+SegSize*2, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream2);
-        cudaMemcpyAsync(d_B2, addend+bias+SegSize*2, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream2);
-        vecAdd<<<SegSize/16, 16, 0, stream1>>>(d_A1, d_B1, d_C1, _len);
-        cudaMemcpyAsync(hostOutput+bias, d_C0, SegSize*sizeof(Type), cudaMemcpyDeviceToHost, stream0);
+        cudaMemcpyAsync(d_A2, _val+bias+SEGSIZE*2, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream2);
+        cudaMemcpyAsync(d_B2, addend+bias+SEGSIZE*2, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream2);
+        vecAdd<<<SEGSIZE/BLKSIZE, BLKSIZE, 0, stream1>>>(d_A1, d_B1, d_C1, _len);
+        cudaMemcpyAsync(ans+bias, d_C0, SEGSIZE*sizeof(Type), cudaMemcpyDeviceToHost, stream0);
 
-        cudaMemcpyAsync(d_A3, _val+bias+SegSize*3, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream3);
-        cudaMemcpyAsync(d_B3, addend+bias+SegSize*3, SegSize*sizeof(Type), cudaMemcpyHostToDevice, stream3);
-        vecAdd<<<SegSize/16, 16, 0, stream2>>>(d_A2, d_B2, d_C2, _len);
-        cudaMemcpyAsync(hostOutput+bias+SegSize, d_C1, SegSize*sizeof(Type), cudaMemcpyDeviceToHost, stream1);
+        cudaMemcpyAsync(d_A3, _val+bias+SEGSIZE*3, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream3);
+        cudaMemcpyAsync(d_B3, addend+bias+SEGSIZE*3, SEGSIZE*sizeof(Type), cudaMemcpyHostToDevice, stream3);
+        vecAdd<<<SEGSIZE/BLKSIZE, BLKSIZE, 0, stream2>>>(d_A2, d_B2, d_C2, _len);
+        cudaMemcpyAsync(ans+bias+SEGSIZE, d_C1, SEGSIZE*sizeof(Type), cudaMemcpyDeviceToHost, stream1);
 
-        vecAdd<<<SegSize/16, 16, 0, stream3>>>(d_A3, d_B3, d_C3, _len);
-        cudaMemcpyAsync(hostOutput+bias+SegSize*2, d_C2, SegSize*sizeof(Type), cudaMemcpyDeviceToHost, stream2);
+        vecAdd<<<SEGSIZE/BLKSIZE, BLKSIZE, 0, stream3>>>(d_A3, d_B3, d_C3, _len);
+        cudaMemcpyAsync(ans+bias+SEGSIZE*2, d_C2, SEGSIZE*sizeof(Type), cudaMemcpyDeviceToHost, stream2);
 
-        cudaMemcpyAsync(hostOutput+bias+SegSize*3, d_C3, SegSize*sizeof(Type), cudaMemcpyDeviceToHost, stream3);
+        cudaMemcpyAsync(ans+bias+SEGSIZE*3, d_C3, SEGSIZE*sizeof(Type), cudaMemcpyDeviceToHost, stream3);
     }
     cudaDeviceSynchronize();
 
@@ -157,6 +181,11 @@ void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
     cudaFree(d_B3);
     cudaFree(d_C3);
 
+    for (int i=0; i<_len; ++i)
+        _val[i] = ans[i];
+
+    delete [] addend;
+    delete [] ans;
     return 0;
 }
 

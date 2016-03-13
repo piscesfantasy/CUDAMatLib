@@ -17,5 +17,9 @@ int main()
     tmpd1.add(tmpd2);
     cout<<tmpi1[0]<<" "<<tmpi1[1]<<" "<<tmpi1[2]<<endl;
     cout<<tmpd1[0]<<" "<<tmpd1[1]<<" "<<tmpd1[2]<<endl;
+    tmpi1.add_stream(tmpi2);
+    tmpd1.add_stream(tmpd2);
+    cout<<tmpi1[0]<<" "<<tmpi1[1]<<" "<<tmpi1[2]<<endl;
+    cout<<tmpd1[0]<<" "<<tmpd1[1]<<" "<<tmpd1[2]<<endl;
     return 0;
 }
