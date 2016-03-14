@@ -1,6 +1,6 @@
 CUDAMatLib
 ==========
-A library offering GPU parallel computation with CUDA on array and matrix data types.
+A library offering GPU parallel computation for array and matrix data types with CUDA.
 
 Requirements
 ------------
