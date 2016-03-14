@@ -41,7 +41,11 @@ class CUDA_matrix
                 for (int c=0; c<num_cols; ++c)
                     _val[r*num_cols+c] = input[r][c];
         }
-        virtual ~CUDA_matrix(){ if (_val!=NULL) delete [] _val; }
+        virtual ~CUDA_matrix()
+        {
+            if (_val!=NULL)
+                delete [] _val;
+        }
 
         int getNumRows(){ return num_rows;}
         int getNumCols(){ return num_cols;}

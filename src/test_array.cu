@@ -1,25 +1,67 @@
 #include "cuda_array.h"
 #include <iostream>
+#include <stdlib>
 
 using namespace std;
 
+void simple_add(int *x, int *y, int len){
+    for (int i=0; i<len; ++i)
+        x[i]+=y[i];
+}
+
 int main()
 {
-    int i1[3] = {1,2,3};
-    int i2[3] = {4,40,400};
-    double d1[3] = {1.1,2.2,3.3};
-    double d2[3] = {11,22,33};
-    CUDA_array<int> tmpi1(i1, 3);
-    CUDA_array<double> tmpd1(d1, 3);
-    CUDA_array<int> tmpi2(i2, 3);
-    CUDA_array<double> tmpd2(d2, 3);
-    tmpi1.add(tmpi2);
-    tmpd1.add(tmpd2);
-    cout<<tmpi1[0]<<" "<<tmpi1[1]<<" "<<tmpi1[2]<<endl;
-    cout<<tmpd1[0]<<" "<<tmpd1[1]<<" "<<tmpd1[2]<<endl;
-    tmpi1.add_stream(tmpi2);
-    tmpd1.add_stream(tmpd2);
-    cout<<tmpi1[0]<<" "<<tmpi1[1]<<" "<<tmpi1[2]<<endl;
-    cout<<tmpd1[0]<<" "<<tmpd1[1]<<" "<<tmpd1[2]<<endl;
+    // int array
+    int len = 10000;
+    vector<int> array_int_1;
+    int *array_int_2 = new int[len];
+    int *array_int_3 = new int[len];
+    for (int i=0; i<len; ++i){
+        array_int_1.push_back(rand()%100);
+        array_int_2[i] = rand()%100;
+        array_int_3[i] = array_int_1[i];
+    }
+    CUDA_array<int> cuda_int_1(array_int_1);
+    CUDA_array<int> cuda_int_2(len);
+    CUDA_array<int> cuda_int_3(array_int_3, len); // not used, just for test
+    cuda_int_2.setValue(array_int_2);
+    cuda_int_1.add(cuda_int_2);
+    simple_add(array_int_3, array_int_2);
+    for (int i=0; i<len; ++i)
+    {
+        if (cuda_int_1[i]!=array_int_3[i])
+        {
+            cout<<"[int] Different value: \n"
+                <<"\tCUDA:      "<<cuda_int_1[i]<<"\n"
+                <<"\treference: "<<array_int_3[i]<<endl;
+        }
+    }
+
+    // double array
+    double len = 10000;
+    vector<double> array_double_1;
+    double *array_double_2 = new double[len];
+    double *array_double_3 = new double[len];
+    for (double i=0; i<len; ++i){
+        array_double_1.push_back(rand()%100);
+        array_double_2[i] = (double)rand()/10000;
+        array_double_3[i] = array_double_1[i];
+    }
+    CUDA_array<double> cuda_double_1(array_double_1);
+    CUDA_array<double> cuda_double_2(len);
+    CUDA_array<double> cuda_double_3(array_double_3, len); // not used, just for test
+    cuda_double_2.setValue(array_double_2);
+    cuda_double_1.add(cuda_double_2);
+    simple_add(array_double_3, array_double_2);
+    for (double i=0; i<len; ++i)
+    {
+        if (cuda_double_1[i]!=array_double_3[i])
+        {
+            cout<<"[double] Different value: \n"
+                <<"\tCUDA:      "<<cuda_double_1[i]<<"\n"
+                <<"\treference: "<<array_double_3[i]<<endl;
+        }
+    }
+
     return 0;
 }
