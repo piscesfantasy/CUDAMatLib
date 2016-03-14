@@ -38,7 +38,7 @@ class CUDA_array
             setValue(data);
         }
 
-        CUDA_array(const vector<Type>& data) : _len(data.size())
+        CUDA_array(vector<Type>& data) : _len(data.size())
         {
             _val = new Type[_len];
             setValue(&data[0]);
