@@ -62,8 +62,18 @@ class CUDA_array
                 _val[i] = data[i];
         }
 
-        int add( CUDA_array<Type> const&);
-        int add_stream( CUDA_array<Type> const&);
+        // vector addition
+        void add( CUDA_array<Type> const&);
+        void add_stream(CUDA_array<Type> const&);
+
+        // vector dot product
+        Type inner_prod(CUDA_array<Type> const&);
+
+        // summation
+        Type sum();
+
+        // cumulative summation
+        //void prefix_sum;
 
     private:
         Type* _val;
@@ -71,12 +81,12 @@ class CUDA_array
 };
 
 template <typename Type>
-int CUDA_array<Type>::add(CUDA_array<Type> const &input)
+void CUDA_array<Type>::add(CUDA_array<Type> const &input)
 {
     if (input.len()!=_len)
     {
         cerr<<"ERROR: can't add arrays with different length"<<endl;
-        return 1;
+        return;
     }
 
     Type *d_in1, *d_in2, *d_out;
@@ -102,17 +112,15 @@ int CUDA_array<Type>::add(CUDA_array<Type> const &input)
     cudaFree(d_in1);
     cudaFree(d_in2);
     cudaFree(d_out);
-
-    return 0;
 }
 
 template <typename Type>
-int CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
+void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
 {
     if (input.len()!=_len)
     {
         cerr<<"ERROR: can't add arrays with different length"<<endl;
-        return 1;
+        return;
     }
 
     Type *addend = input.getValue();
@@ -186,7 +194,18 @@ int CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
 
     delete [] addend;
     delete [] ans;
-    return 0;
+}
+
+template <typename Type>
+Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
+{
+    return Type();
+}
+
+template <typename Type>
+Type CUDA_array<Type>::sum()
+{
+    return Type();
 }
 
 #endif
