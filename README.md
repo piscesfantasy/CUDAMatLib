@@ -11,5 +11,6 @@ Requirements
 
 Installation & Test
 -------------------
-* Execute "make" to create binaries in bin/ for testing purpose.
-* Use the header files in include/ folder directly (refer to src/\*.cu for use cases).
+* Use the header files in include/ folder directly.
+* Refer to src/\*.cu for use cases.
+* `make` to create binaries in bin/ for testing.

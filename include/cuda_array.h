@@ -30,17 +30,17 @@ class CUDA_array
         CUDA_array(const int& l);
         CUDA_array(Type* data, const int& l);
         CUDA_array(vector<Type>& data);
+        CUDA_array(const CUDA_array<Type>& other);
 
         virtual ~CUDA_array();
 
         Type &operator[](const size_t idx){ return _val[idx]; }
-        Type* getValue() const{ return _val; }
+        int len() const { return _len; }
+        Type* getValue() const { return _val; }
         void setValue(Type* data);
 
-        int len() const{ return _len; }
-
         // vector addition
-        void add( CUDA_array<Type> const&);
+        void add(CUDA_array<Type> const&);
         void add_stream(CUDA_array<Type> const&);
 
         // vector dot product
@@ -50,7 +50,10 @@ class CUDA_array
         Type sum();
 
         // cumulative summation
-        //void prefix_sum;
+        void cumulate();
+
+        // convolution
+        //void convolve(const Type* mask, const int& m_len);
 
     private:
         Type* _val;
@@ -75,6 +78,14 @@ CUDA_array<Type>::CUDA_array(vector<Type>& data) : _len(data.size())
 {
     _val = new Type[_len];
     setValue(&data[0]);
+}
+
+template <typename Type>
+CUDA_array<Type>::CUDA_array(const CUDA_array<Type>& other)
+{
+    _len = other.len();
+    _val = new Type[_len];
+    setValue(other.getValue());
 }
 
 template <typename Type>
@@ -217,6 +228,11 @@ template <typename Type>
 Type CUDA_array<Type>::sum()
 {
     return Type();
+}
+
+template <typename Type>
+void CUDA_array<Type>::cumulate()
+{
 }
 
 #endif

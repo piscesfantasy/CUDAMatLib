@@ -32,7 +32,10 @@ int main()
     CUDA_array<int> cuda_int_2(len);
     CUDA_array<int> cuda_int_3(array_int_3, len); // not used, just for test
     cuda_int_2.setValue(array_int_2);
+    CUDA_array<int> cuda_int_4(cuda_int_2); // not used, just for test
+
     cuda_int_1.add(cuda_int_2);
+
     simple_add(array_int_3, array_int_2, len);
     for (int i=0; i<len; ++i)
     {
@@ -58,7 +61,10 @@ int main()
     CUDA_array<double> cuda_double_2(len);
     CUDA_array<double> cuda_double_3(array_double_3, len); // not used, just for test
     cuda_double_2.setValue(array_double_2);
+    CUDA_array<double> cuda_double_4(cuda_double_2); // not used, just for test
+
     cuda_double_1.add(cuda_double_2);
+
     simple_add(array_double_3, array_double_2, len);
     for (int i=0; i<len; ++i)
     {

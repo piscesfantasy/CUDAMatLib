@@ -27,17 +27,24 @@ template <typename Type>
 class CUDA_matrix
 {
     public:
-        CUDA_matrix(){}
+        CUDA_matrix() {_val = NULL;}
         CUDA_matrix(const vector< vector<Type> >& input);
         CUDA_matrix(Type** input, const int& _r, const int& _c);
+        CUDA_matrix(const CUDA_matrix<Type>& other);
         virtual ~CUDA_matrix();
 
         void init(const int& r, const int& c);
 
-        const int getNumRows() {return num_rows;}
-        const int getNumCols() {return num_cols;}
-        const int size() {return num_rows*num_cols;}
-        Type* getValue() const{ return _val; }
+        int getNumRows() const {return num_rows;}
+        int getNumCols() const {return num_cols;}
+        int size() const {return num_rows*num_cols;}
+        Type* getValue() const {return _val;}
+
+        // cumulative summation
+        void cumulate();
+
+        // convolution
+        //void convolve(const Type** mask, const int& m_length, const int& m_width);
 
     private:
         int num_rows;
@@ -49,6 +56,7 @@ class CUDA_matrix
 template <typename Type>
 CUDA_matrix<Type>::CUDA_matrix(const vector< vector<Type> >& input)
 {
+    _val = NULL;
     init(input.size(), input[0].size());
     for (int r=0; r<num_rows; ++r)
         for (int c=0; c<num_cols; ++c)
@@ -58,10 +66,21 @@ CUDA_matrix<Type>::CUDA_matrix(const vector< vector<Type> >& input)
 template <typename Type>
 CUDA_matrix<Type>::CUDA_matrix(Type** input, const int& _r, const int& _c)
 {
+    _val = NULL;
     init(_r, _c);
     for (int r=0; r<num_rows; ++r)
         for (int c=0; c<num_cols; ++c)
             _val[r*num_cols+c] = input[r][c];
+}
+
+template <typename Type>
+CUDA_matrix<Type>::CUDA_matrix(const CUDA_matrix<Type>& other)
+{
+    _val = NULL;
+    init(other.getNumRows(), other.getNumCols());
+    for (int r=0; r<num_rows; ++r)
+        for (int c=0; c<num_cols; ++c)
+            _val[r*num_cols+c] = other.getValue()[r*num_cols+c];
 }
 
 template <typename Type>
@@ -76,6 +95,7 @@ void CUDA_matrix<Type>::init(const int& r, const int& c)
 {
     num_rows = r;
     num_cols = c;
+    if (_val!=NULL) delete [] _val;
     _val = new Type[num_rows*num_cols];
 }
 
@@ -119,6 +139,11 @@ void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_m
     cudaFree(d_out);
 
     return;
+}
+
+template <typename Type>
+void CUDA_matrix<Type>::cumulate()
+{
 }
 
 #endif
