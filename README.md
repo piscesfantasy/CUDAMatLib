@@ -14,3 +14,10 @@ Installation & Test
 * Use the header files in include/ folder directly.
 * Refer to src/\*.cu for use cases.
 * `make` to create binaries in bin/ for testing.
+
+To-do
+-----
+* Complete declaired functions
+* Figure out how to better incorporate different implementation of matrix multiplication
+* Figure out how to better incorporate streamed version of CUDA algorithm
+* Decide whether to incorporate archived functions
