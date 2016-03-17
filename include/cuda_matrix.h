@@ -3,6 +3,11 @@
 
 #include "cuda_matrix_kernel.h"
 #include <stdio.h>
+#include <iostream>
+#include <vector>
+
+#define SEGSIZE 256
+#define BLKSIZE 16
 
 using namespace std;
 
@@ -23,32 +28,15 @@ class CUDA_matrix
 {
     public:
         CUDA_matrix(){}
-        CUDA_matrix(const vector< vector<Type> >& input)
-        {
-            num_rows = input.size();
-            num_cols = input[0].size();
-            _val = new Type[num_rows*num_cols];
-            for (int r=0; r<num_rows; ++r)
-                for (int c=0; c<num_cols; ++c)
-                    _val[r*num_cols+c] = input[r][c];
-        }
-        CUDA_matrix(Type** input, const int& _r, const int& _c)
-        {
-            num_rows = _r;
-            num_cols = _c;
-            _val = new Type[num_rows*num_cols];
-            for (int r=0; r<num_rows; ++r)
-                for (int c=0; c<num_cols; ++c)
-                    _val[r*num_cols+c] = input[r][c];
-        }
-        virtual ~CUDA_matrix()
-        {
-            if (_val!=NULL)
-                delete [] _val;
-        }
+        CUDA_matrix(const vector< vector<Type> >& input);
+        CUDA_matrix(Type** input, const int& _r, const int& _c);
+        virtual ~CUDA_matrix();
 
-        int getNumRows(){ return num_rows;}
-        int getNumCols(){ return num_cols;}
+        void init(const int& r, const int& c);
+
+        const int getNumRows() {return num_rows;}
+        const int getNumCols() {return num_cols;}
+        const int size() {return num_rows*num_cols;}
         Type* getValue() const{ return _val; }
 
     private:
@@ -57,45 +45,80 @@ class CUDA_matrix
         Type *_val;
 };
 
+
 template <typename Type>
-void CUDA_matrix<Type>::multiply(CUDA_matrix<Type> const &input, CUDA_matrix<Type> *output)
+CUDA_matrix<Type>::CUDA_matrix(const vector< vector<Type> >& input)
 {
-    Type *hostA; // The A matrix
-    Type *hostB; // The B matrix
-    Type *hostC; // The output C matrix
+    init(input.size(), input[0].size());
+    for (int r=0; r<num_rows; ++r)
+        for (int c=0; c<num_cols; ++c)
+            _val[r*num_cols+c] = input[r][c];
+}
+
+template <typename Type>
+CUDA_matrix<Type>::CUDA_matrix(Type** input, const int& _r, const int& _c)
+{
+    init(_r, _c);
+    for (int r=0; r<num_rows; ++r)
+        for (int c=0; c<num_cols; ++c)
+            _val[r*num_cols+c] = input[r][c];
+}
+
+template <typename Type>
+CUDA_matrix<Type>::~CUDA_matrix()
+{
+    if (_val!=NULL)
+        delete [] _val;
+}
+        
+template <typename Type>
+void CUDA_matrix<Type>::init(const int& r, const int& c)
+{
+    num_rows = r;
+    num_cols = c;
+    _val = new Type[num_rows*num_cols];
+}
+
+template <typename Type>
+void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_matrix<Type> &out)
+{
+    if (in1.getNumCols()!=in2.getNumRows())
+    {
+        cerr<<"ERROR: can't multiply matrices, number of row and column doesn't match"<<endl;
+        return;
+    }
+
     Type *d_in1;
     Type *d_in2;
     Type *d_out;
-    int numBRows = input.getNumRows();
-    int numBColumns = input.getNumCols();
-    int numCRows;
-    int numCColumns;
 
-    numCRows = num_rows;
-    numCColumns = numBColumns;
+    out.init(in1.getNumRows(), in2.getNumCols());
 
-    hostC = ( Type * )malloc(numCRows*numCColumns*sizeof(Type)); 
+    //tmp_out = ( Type * )malloc(out.size()*sizeof(Type)); 
 
-    cudaMalloc((void**) &d_in1, num_rows*num_cols*sizeof(Type));
-    cudaMalloc((void**) &d_in2, numBRows*numBColumns*sizeof(Type));
-    cudaMalloc((void**) &d_out, numCRows*numCColumns*sizeof(Type));
+    cudaMalloc((void**) &d_in1, in1.size()*sizeof(Type));
+    cudaMalloc((void**) &d_in2, in1.size()*sizeof(Type));
+    cudaMalloc((void**) &d_out, out.size()*sizeof(Type));
+    cudaCheckErrors("cudaMalloc @ CUDA_matrix_multiply");
 
-    cudaMemcpy(d_in1, hostA, num_rows*num_cols*sizeof(Type), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_in2, hostB, numBRows*numBColumns*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_in1, in1.getValue(), in1.size()*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_in2, in2.getValue(), in2.size()*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_matrix_multiply");
 
-    dim3 grid((numCRows-1)/16+1, (numCColumns-1)/16+1, 1);
-    dim3 block(16, 16, 1);
+    dim3 grid((out.getNumRows()-1)/BLKSIZE+1, (out.getNumCols()-1)/BLKSIZE+1, 1);
+    dim3 block(BLKSIZE, BLKSIZE, 1);
 
-    matrixMultiply<<<grid, block>>>(d_in1, d_in2, d_out, num_rows, num_cols, numBRows, numBColumns, numCRows, numCColumns);
+    matrixMultiply<<<grid, block>>>(d_in1, d_in2, d_out, in1.getNumRows(), in1.getNumCols(), in2.getNumRows(), in2.getNumCols(), out.getNumRows(), out.getNumCols());
     cudaDeviceSynchronize();
 
-    cudaMemcpy(hostC, d_out, numCRows*numCColumns*sizeof(Type), cudaMemcpyDeviceToHost);	
+    cudaMemcpy(out.getValue(), d_out, out.size()*sizeof(Type), cudaMemcpyDeviceToHost);	
+    cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_matrix_multiply");
 
     cudaFree(d_in1);
     cudaFree(d_in2);
     cudaFree(d_out);
 
-    return 0;
+    return;
 }
 
 #endif

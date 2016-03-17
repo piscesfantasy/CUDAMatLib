@@ -10,8 +10,8 @@
 template <typename Type>
 __global__ void matrixMultiply(Type *A, Type *B, Type *C, int numARows,
                                int numAColumns, int numBRows, int numBColumns,
-                               int numCRows, int numCColumns) {
-	//@@ Insert code to implement matrix multiplication here
+                               int numCRows, int numCColumns)
+{
 	int C_x = blockIdx.x*blockDim.x + threadIdx.x;
 	int C_y = blockIdx.y*blockDim.y + threadIdx.y;
 	if (C_x < numCRows && C_y < numCColumns){
@@ -33,7 +33,8 @@ template <typename Type>
 __global__ void matrixMultiplyShared(Type *A, Type *B, Type *C, int numARows,
                                      int numAColumns, int numBRows,
                                      int numBColumns, int numCRows,
-                                     int numCColumns) {
+                                     int numCColumns)
+{
 	__shared__ Type tmpA[16][16];
   	__shared__ Type tmpB[16][16];
 

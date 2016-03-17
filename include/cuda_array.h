@@ -27,40 +27,17 @@ template <typename Type>
 class CUDA_array
 {
     public:
-        CUDA_array(const int& l) : _len(l)
-        {
-            _val = new Type[_len];
-        }
+        CUDA_array(const int& l);
+        CUDA_array(Type* data, const int& l);
+        CUDA_array(vector<Type>& data);
 
-        CUDA_array(Type* data, const int& l) : _len(l)
-        {
-            _val = new Type[_len];
-            setValue(data);
-        }
-
-        CUDA_array(vector<Type>& data) : _len(data.size())
-        {
-            _val = new Type[_len];
-            setValue(&data[0]);
-        }
-
-        virtual ~CUDA_array()
-        {
-            if (_val!=NULL)
-                delete [] _val;
-        }
+        virtual ~CUDA_array();
 
         Type &operator[](const size_t idx){ return _val[idx]; }
+        Type* getValue() const{ return _val; }
+        void setValue(Type* data);
 
         int len() const{ return _len; }
-
-        Type* getValue() const{ return _val; }
-
-        void setValue(Type* data)
-        {
-            for (int i=0; i<_len; ++i)
-                _val[i] = data[i];
-        }
 
         // vector addition
         void add( CUDA_array<Type> const&);
@@ -79,6 +56,40 @@ class CUDA_array
         Type* _val;
         int _len;
 };
+
+template <typename Type>
+CUDA_array<Type>::CUDA_array(const int& l) : _len(l)
+{
+    _val = new Type[_len];
+}
+
+template <typename Type>
+CUDA_array<Type>::CUDA_array(Type* data, const int& l) : _len(l)
+{
+    _val = new Type[_len];
+    setValue(data);
+}
+
+template <typename Type>
+CUDA_array<Type>::CUDA_array(vector<Type>& data) : _len(data.size())
+{
+    _val = new Type[_len];
+    setValue(&data[0]);
+}
+
+template <typename Type>
+CUDA_array<Type>::~CUDA_array()
+{
+    if (_val!=NULL)
+        delete [] _val;
+}
+
+template <typename Type>
+void CUDA_array<Type>::setValue(Type* data)
+{
+    for (int i=0; i<_len; ++i)
+        _val[i] = data[i];
+}
 
 template <typename Type>
 void CUDA_array<Type>::add(CUDA_array<Type> const &input)

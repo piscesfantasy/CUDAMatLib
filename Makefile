@@ -7,8 +7,10 @@ INCLUDE=-I /usr/local/cuda/samples/common/inc/ -I /usr/local/cuda/include -I inc
 
 SRC=src
 OBJ=obj
+BIN=bin
 
-SOURCES=test_array.cu
+SOURCES=test_array.cu test_mat.cu
+EXECUTABLES=test_array test_mat
 
 OBJECTS:=$(addprefix $(OBJ)/, $(addsuffix .o,$(basename $(SOURCES))))
 
@@ -18,10 +20,10 @@ vpath %.cu src/
 
 .PHONY: dir exe clean
 
-all: dir exe
+all: dir test_array test_mat
 
 dir:
-	mkdir -p $(OBJ)
+	mkdir -p $(BIN) $(OBJ)
 
 $(OBJ)/%.o: %.cc
 	$(CXX) $(CFLAGS) $(INCLUDE) -c -o $@ $<
@@ -29,8 +31,11 @@ $(OBJ)/%.o: %.cc
 $(OBJ)/%.o : %.cu
 	$(NVCC) $(INCLUDE) -c -o $@ $<
 
-exe: $(OBJECTS)
-	$(CXX) -o test $^ $(LDFLAGS) 
+test_array: $(OBJ)/test_array.o
+	$(CXX) -o $(BIN)/test_array $^ $(LDFLAGS) 
+
+test_mat: $(OBJ)/test_mat.o
+	$(CXX) -o $(BIN)/test_mat $^ $(LDFLAGS) 
 
 clean:
-	rm -rf $(OBJ)
+	rm -rf $(BIN) $(OBJ)

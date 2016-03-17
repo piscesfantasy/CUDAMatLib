@@ -50,7 +50,7 @@ int main()
     double *array_double_2 = new double[len];
     double *array_double_3 = new double[len];
     for (int i=0; i<len; ++i){
-        array_double_1.push_back(rand()%100);
+        array_double_1.push_back((double)rand()/10000);
         array_double_2[i] = (double)rand()/10000;
         array_double_3[i] = array_double_1[i];
     }
