@@ -6,9 +6,6 @@
 #include <iostream>
 #include <vector>
 
-#define SEGSIZE 256
-#define BLKSIZE 16
-
 using namespace std;
 
 #define cudaCheckErrors(msg) \
@@ -41,7 +38,10 @@ class CUDA_array
 
         // vector addition
         void add(CUDA_array<Type> const&);
-        void add_stream(CUDA_array<Type> const&);
+
+        // Note: current editon of add_stream would cause segmentation fault
+        // upon cudaFree, might be due to failing in malloc
+        //void add_stream(CUDA_array<Type> const&);
 
         // vector dot product
         Type inner_prod(CUDA_array<Type> const&);
@@ -137,6 +137,58 @@ void CUDA_array<Type>::add(CUDA_array<Type> const &input)
 }
 
 template <typename Type>
+Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
+{
+    return Type();
+}
+
+template <typename Type>
+Type CUDA_array<Type>::sum()
+{
+    Type *d_in, *d_out;
+    int reduced_len = _len / (BLKSIZE<<1);
+    if (_len % (BLKSIZE<<1))
+        reduced_len+=1;
+    Type *reduced_val = new Type[reduced_len];
+
+	cudaMalloc((void **) &d_in, _len*sizeof(Type));
+	cudaMalloc((void **) &d_out, reduced_len*sizeof(Type));
+    cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::sum");
+	
+	cudaMemcpy(d_in, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::sum");
+
+	dim3 block(BLKSIZE, 1, 1);
+	dim3 grid(reduced_len, 1, 1);
+	total<<<grid, block>>>(d_in, d_out, _len);
+    cudaDeviceSynchronize();
+	
+	cudaMemcpy(reduced_val, d_out, reduced_len*sizeof(Type), cudaMemcpyDeviceToHost);
+    cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_array<Type>::sum");
+	
+    /********************************************************************
+     * Reduce output vector on the host
+     * NOTE: One could also perform the reduction of the output vector
+     * recursively and support any size input.
+     ********************************************************************/
+    for (int i=1; i<reduced_len; ++i)
+        reduced_val[0]+=reduced_val[i];
+    Type ans = reduced_val[0];
+
+	cudaFree(d_in);
+	cudaFree(d_out);
+    delete [] reduced_val;
+
+    return ans;
+}
+
+template <typename Type>
+void CUDA_array<Type>::cumulate()
+{
+}
+
+/*
+template <typename Type>
 void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
 {
     if (input.len()!=_len)
@@ -146,7 +198,7 @@ void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
     }
 
     Type *addend = input.getValue();
-    Type *ans = (Type *) malloc(_len * sizeof(Type));
+    Type *ans = new Type[_len];
 
     cudaStream_t stream0, stream1, stream2, stream3;
     cudaStreamCreate(&stream0);
@@ -212,27 +264,14 @@ void CUDA_array<Type>::add_stream(CUDA_array<Type> const &input)
     cudaFree(d_C3);
 
     for (int i=0; i<_len; ++i)
+    {
+        cout<<i<<endl;
         _val[i] = ans[i];
+    }
 
     delete [] addend;
     delete [] ans;
 }
-
-template <typename Type>
-Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
-{
-    return Type();
-}
-
-template <typename Type>
-Type CUDA_array<Type>::sum()
-{
-    return Type();
-}
-
-template <typename Type>
-void CUDA_array<Type>::cumulate()
-{
-}
+*/
 
 #endif
