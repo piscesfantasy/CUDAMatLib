@@ -17,6 +17,7 @@ Installation & Test
 
 To-do
 -----
+* Fix CUDA\_array::sum()
 * Complete declaired functions
 * Figure out how to better incorporate different implementation of matrix multiplication
 * Decide whether to incorporate archived functions
