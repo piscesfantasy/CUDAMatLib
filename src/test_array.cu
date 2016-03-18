@@ -38,7 +38,7 @@ int test(const string& _type, const int& len, Type (*get_rand)())
     }
     CUDA_array<Type> cuda_1(array_1);
     CUDA_array<Type> cuda_2(len);
-    CUDA_array<Type> cuda_3(array_3, len); // not used, just for test
+    CUDA_array<Type> cuda_3(array_3, len);
     cuda_2.setValue(array_2);
     CUDA_array<Type> cuda_4(cuda_2); // not used, just for test
 
@@ -51,18 +51,9 @@ int test(const string& _type, const int& len, Type (*get_rand)())
             cerr<<"["<<_type<<"] CUDA add() result in different values: \n"
                 <<"\tCUDA:      "<<cuda_1[i]<<"\n"
                 <<"\treference: "<<array_3[i]<<endl;
+            return 1;
         }
     }
-    /*cuda_4.add_stream(cuda_3);
-    for (int i=0; i<len; ++i)
-    {
-        if (cuda_4[i]!=array_3[i])
-        {
-            cerr<<"[Type] CUDA add_stream() result in different values: \n"
-                <<"\tCUDA:      "<<cuda_4[i]<<"\n"
-                <<"\treference: "<<array_3[i]<<endl;
-        }
-    }*/
 
     Type sum1 = cuda_3.sum();
     Type sum2 = simple_sum(array_3, len);
@@ -71,9 +62,11 @@ int test(const string& _type, const int& len, Type (*get_rand)())
         cerr<<"["<<_type<<"] CUDA sum() result in different values: \n"
             <<"\tCUDA:      "<<sum1<<"\n"
             <<"\treference: "<<sum2<<endl;
+        return 1;
     }
 
     cout<<_type<<" test completed"<<endl;
+    return 0;
 }
 
 int main()

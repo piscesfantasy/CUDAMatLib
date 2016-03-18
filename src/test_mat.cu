@@ -4,44 +4,36 @@
 
 using namespace std;
 
+inline int get_rand_int() { return rand()%100; }
+
+inline double get_rand_double() { return (double)rand()/10000; }
+
+template <typename Type>
+int test(const string& _type, const int& size, const int& width, Type (*get_rand)())
+{
+    vector< vector<Type> > mat_1;
+    Type **mat_2 = new Type*[width];
+    for (int i=0; i<width; ++i){
+        mat_1.push_back(vector<Type>());
+        mat_2[i] = new Type[width];
+        for (int j=0; j<width; ++j){
+            mat_1[i].push_back((*get_rand)());
+            mat_2[i][j] = (*get_rand)();
+        }
+    }
+    CUDA_matrix<Type> cuda_1(mat_1);
+    CUDA_matrix<Type> cuda_2(mat_2, width, width);
+    CUDA_matrix<Type> cuda_3;
+    CUDA_matrix_multiply<Type>(cuda_1, cuda_2, cuda_3);
+    cout<<_type<<" test completed"<<endl;
+}
+
 int main()
 {
     cout<<"Begin testing......"<<endl;
     int size = 10000;
     int width = 100;
-
-    vector< vector<int> > mat_int_1;
-    int **mat_int_2 = new int*[width];
-    for (int i=0; i<width; ++i){
-        mat_int_1.push_back(vector<int>());
-        mat_int_2[i] = new int[width];
-        for (int j=0; j<width; ++j){
-            mat_int_1[i].push_back(rand()%100);
-            mat_int_2[i][j] = rand()%100;
-        }
-    }
-    CUDA_matrix<int> cuda_int_1(mat_int_1);
-    CUDA_matrix<int> cuda_int_2(mat_int_2, width, width);
-    CUDA_matrix<int> cuda_int_3;
-    CUDA_matrix_multiply<int>(cuda_int_1, cuda_int_2, cuda_int_3);
-    cout<<"Int test completed"<<endl;
-
-    // double array
-    vector< vector<double> > mat_double_1;
-    double **mat_double_2 = new double*[width];
-    for (int i=0; i<width; ++i){
-        mat_double_1.push_back(vector<double>());
-        mat_double_2[i] = new double[width];
-        for (int j=0; j<width; ++j){
-            mat_double_1[i].push_back((double)rand()/10000);
-            mat_double_2[i][j] = (double)rand()/10000;
-        }
-    }
-    CUDA_matrix<double> cuda_double_1(mat_double_1);
-    CUDA_matrix<double> cuda_double_2(mat_double_2, width, width);
-    CUDA_matrix<double> cuda_double_3;
-    CUDA_matrix_multiply<double>(cuda_double_1, cuda_double_2, cuda_double_3);
-    cout<<"Double test completed"<<endl;
-
+    test<int>("int", size, width, get_rand_int);
+    test<double>("double", size, width, get_rand_double);
     return 0;
 }
