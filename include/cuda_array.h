@@ -208,9 +208,9 @@ Type CUDA_array<Type>::sum()
      * NOTE: One could also perform the reduction of the output vector
      * recursively and support any size input.
      ********************************************************************/
-    for (int i=1; i<reduced_len; ++i)
-        reduced_val[0]+=reduced_val[i];
-    Type ans = reduced_val[0];
+    Type ans = 0;
+    for (int i=0; i<reduced_len; ++i)
+        ans+=reduced_val[i];
 
     cudaFree(d_in);
     cudaFree(d_out);

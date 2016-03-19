@@ -5,7 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#define BLKSIZE 128
+#define BLKSIZE 256
 
 template <typename Type>
 __global__ void vecAdd(Type *in1, Type *in2, Type *out, int len)
@@ -34,9 +34,8 @@ __global__ void total(Type *input, Type *output, int len)
         tmp[2*threadIdx.x] = input[inputIdx];
     else
         tmp[2*threadIdx.x] = 0;
-    ++inputIdx;
-    if (inputIdx < len)
-        tmp[2*threadIdx.x+1] = input[inputIdx];
+    if (inputIdx+1 < len)
+        tmp[2*threadIdx.x+1] = input[inputIdx+1];
     else
         tmp[2*threadIdx.x+1] = 0;
 
@@ -50,6 +49,7 @@ __global__ void total(Type *input, Type *output, int len)
 
     //@@ Write the computed sum of the block to the output vector at the 
     //@@ correct index
+    __syncthreads();
     output[blockIdx.x] = tmp[0];
 }
 

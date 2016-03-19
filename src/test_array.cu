@@ -39,7 +39,7 @@ void simple_cumulate(Type *x, int len)
 
 inline int get_rand_int() { return rand()%100; }
 
-inline double get_rand_double() { return (double)rand()/100; }
+inline double get_rand_double() { return (double)rand()/1.0e7; }
 
 template <typename Type>
 void compare(const Type& val_cuda, const Type& val_simple, const string& _type, const string& func_name)

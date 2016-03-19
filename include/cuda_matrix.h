@@ -41,7 +41,7 @@ class CUDA_matrix
         Type* getValue() const {return _val;}
 
         // cumulative summation
-        virtual void cumulate();
+        //virtual void cumulate();
 
         // convolution
         //virtual void convolve(const Type** mask, const int& m_length, const int& m_width);
@@ -114,8 +114,6 @@ void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_m
 
     out.init(in1.getNumRows(), in2.getNumCols());
 
-    //tmp_out = ( Type * )malloc(out.size()*sizeof(Type)); 
-
     cudaMalloc((void**) &d_in1, in1.size()*sizeof(Type));
     cudaMalloc((void**) &d_in2, in1.size()*sizeof(Type));
     cudaMalloc((void**) &d_out, out.size()*sizeof(Type));
@@ -139,11 +137,6 @@ void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_m
     cudaFree(d_out);
 
     return;
-}
-
-template <typename Type>
-void CUDA_matrix<Type>::cumulate()
-{
 }
 
 #endif
