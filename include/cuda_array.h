@@ -46,8 +46,11 @@ class CUDA_array
         // vector dot product
         virtual Type inner_prod(CUDA_array<Type> const&);
 
-        // summation
+        // calculate total
         virtual Type sum();
+
+        // calculate max
+        //virtual Type max();
 
         // cumulative summation
         virtual void cumulate();
