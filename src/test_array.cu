@@ -28,6 +28,7 @@ inline double get_rand_double() { return (double)rand()/10000; }
 template <typename Type>
 int test(const string& _type, const int& len, Type (*get_rand)())
 {
+    // Test constructors
     vector<Type> array_1;
     Type *array_2 = new Type[len];
     Type *array_3 = new Type[len];
@@ -38,10 +39,11 @@ int test(const string& _type, const int& len, Type (*get_rand)())
     }
     CUDA_array<Type> cuda_1(array_1);
     CUDA_array<Type> cuda_2(len);
-    CUDA_array<Type> cuda_3(array_3, len);
     cuda_2.setValue(array_2);
+    CUDA_array<Type> cuda_3(array_3, len);
     CUDA_array<Type> cuda_4(cuda_2); // not used, just for test
 
+    // Test add
     cuda_1.add(cuda_2);
     simple_add(array_3, array_2, len);
     for (int i=0; i<len; ++i)
@@ -55,8 +57,9 @@ int test(const string& _type, const int& len, Type (*get_rand)())
         }
     }
 
-    Type sum1 = cuda_3.sum();
-    Type sum2 = simple_sum(array_3, len);
+    // Test sum
+    Type sum1 = cuda_2.sum();
+    Type sum2 = simple_sum(array_2, len);
     if (sum1 != sum2)
     {
         cerr<<"["<<_type<<"] CUDA sum() result in different values: \n"
@@ -64,6 +67,10 @@ int test(const string& _type, const int& len, Type (*get_rand)())
             <<"\treference: "<<sum2<<endl;
         return 1;
     }
+
+    // Test inner product
+
+    // Test cumulate (prefix sum)
 
     cout<<_type<<" test completed"<<endl;
     return 0;
