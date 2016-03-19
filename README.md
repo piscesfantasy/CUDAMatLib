@@ -17,7 +17,11 @@ Installation & Test
 
 To-do
 -----
-* Test and fix functions in CUDA\_array
-* Complete declaired functions in CUDA\_matrix
-* Figure out how to better incorporate different implementation of matrix multiplication
-* Decide whether to incorporate every archived function
+[CUDA\_matrix]
+- Complete declaired functions
+- Figure out how to better incorporate different implementation of matrix multiplication
+- Decide whether to incorporate every archived function
+
+Known issue
+-----------
+* [CUDA\_array] sum() and inner\_prod() sometimes result in perceivable error; to find out why.

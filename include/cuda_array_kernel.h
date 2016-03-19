@@ -5,9 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#define SEGSIZE 256
-#define BLKSIZE 16
-#define BLKSIZE_LARGE 512
+#define BLKSIZE 128
 
 template <typename Type>
 __global__ void vecAdd(Type *in1, Type *in2, Type *out, int len)
@@ -58,7 +56,7 @@ __global__ void total(Type *input, Type *output, int len)
 template <typename Type>
 __global__ void scan(Type * input, Type * output, int len)
 {
-    __shared__ Type tmp[2*BLOCK_SIZE];
+    __shared__ Type tmp[2*BLKSIZE];
     int loadingIdx = 2*(blockIdx.x*blockDim.x+threadIdx.x);
 
     // Read memory
@@ -72,19 +70,19 @@ __global__ void scan(Type * input, Type * output, int len)
         tmp[2*threadIdx.x+1] = 0.0;
 
     // Reduction phase
-    for (int stride=1; stride<=BLOCK_SIZE; stride*=2) {
+    for (int stride=1; stride<=BLKSIZE; stride*=2) {
         __syncthreads();
         int reductionIdx = (threadIdx.x+1)*2*stride-1;
-        if (reductionIdx < 2*BLOCK_SIZE)
+        if (reductionIdx < 2*BLKSIZE)
             tmp[reductionIdx]+=tmp[reductionIdx-stride];
     }
 
     // Post reduction reverse phase
-    for (int stride=BLOCK_SIZE/2; stride>0; stride/=2)
+    for (int stride=BLKSIZE/2; stride>0; stride/=2)
     {
         __syncthreads();
         int reductionIdx = (threadIdx.x+1)*2*stride-1;
-        if (reductionIdx+stride < 2*BLOCK_SIZE)
+        if (reductionIdx+stride < 2*BLKSIZE)
             tmp[reductionIdx+stride]+=tmp[reductionIdx];
     }
 
@@ -99,7 +97,7 @@ __global__ void scan(Type * input, Type * output, int len)
 template <typename Type>
 __global__ void offset(Type * input, Type * output, int len)
 {
-    __shared__ Type tmp[2*BLOCK_SIZE];
+    __shared__ Type tmp[2*BLKSIZE];
     int loadingIdx = 2*(blockIdx.x*blockDim.x+threadIdx.x);
 
     // Read memory
@@ -115,8 +113,8 @@ __global__ void offset(Type * input, Type * output, int len)
     // Add offset
     for (int i=blockIdx.x; i>0; --i)
     {
-        tmp[2*threadIdx.x] += input[2*BLOCK_SIZE*i-1];
-        tmp[2*threadIdx.x+1] += input[2*BLOCK_SIZE*i-1];
+        tmp[2*threadIdx.x] += input[2*BLKSIZE*i-1];
+        tmp[2*threadIdx.x+1] += input[2*BLKSIZE*i-1];
     }
 
     // Write memory

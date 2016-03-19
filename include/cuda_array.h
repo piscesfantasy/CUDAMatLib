@@ -37,20 +37,20 @@ class CUDA_array
         void setValue(Type* data);
 
         // vector addition
-        void add(CUDA_array<Type> const&);
+        virtual void add(CUDA_array<Type> const&);
 
         // Note: current editon of add_stream would cause segmentation fault
         // upon cudaFree, might be due to failing in malloc
         //void add_stream(CUDA_array<Type> const&);
 
         // vector dot product
-        Type inner_prod(CUDA_array<Type> const&);
+        virtual Type inner_prod(CUDA_array<Type> const&);
 
         // summation
-        Type sum();
+        virtual Type sum();
 
         // cumulative summation
-        void cumulate();
+        virtual void cumulate();
 
         // convolution
         //void convolve(const Type* mask, const int& m_len);
@@ -116,6 +116,7 @@ void CUDA_array<Type>::add(CUDA_array<Type> const &input)
     cudaMalloc((void**) &d_in1, _len*sizeof(Type));
     cudaMalloc((void**) &d_in2, _len*sizeof(Type));
     cudaMalloc((void**) &d_out, _len*sizeof(Type));
+    cudaMemset(d_out, 0, _len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::add");
 
     cudaMemcpy(d_in1, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
@@ -142,7 +143,7 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
     if (input.len()!=_len)
     {
         cerr<<"ERROR: can't inner product arrays with different length"<<endl;
-        return;
+        return 0;
     }
 
     Type *d_in1, *d_in2, *d_out;
@@ -151,6 +152,7 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
     cudaMalloc((void**) &d_in1, _len*sizeof(Type));
     cudaMalloc((void**) &d_in2, _len*sizeof(Type));
     cudaMalloc((void**) &d_out, _len*sizeof(Type));
+    cudaMemset(d_out, 0, _len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::inner_prod");
 
     cudaMemcpy(d_in1, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
@@ -187,6 +189,7 @@ Type CUDA_array<Type>::sum()
 
     cudaMalloc((void **) &d_in, _len*sizeof(Type));
     cudaMalloc((void **) &d_out, reduced_len*sizeof(Type));
+    cudaMemset(d_out, 0, reduced_len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::sum");
 
     cudaMemcpy(d_in, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
@@ -224,10 +227,10 @@ void CUDA_array<Type>::cumulate()
     cudaMalloc((void**)&d_in, _len*sizeof(Type));
     cudaMalloc((void**)&d_out, _len*sizeof(Type));
     cudaMemcpy(d_in, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
-    //cudaMemset(d_out, 0, _len*sizeof(Type));
+    cudaMemset(d_out, 0, _len*sizeof(Type));
 
-    dim3 block(BLOCK_SIZE, 1, 1);
-    dim3 grid((_len-1)/(BLOCK_SIZE*2)+1, 1, 1);
+    dim3 block(BLKSIZE, 1, 1);
+    dim3 grid((_len-1)/(BLKSIZE*2)+1, 1, 1);
     scan<<<grid, block>>>(d_in, d_in, _len);
     offset<<<grid, block>>>(d_in, d_out, _len);
     cudaDeviceSynchronize();

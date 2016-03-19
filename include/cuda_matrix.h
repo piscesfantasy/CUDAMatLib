@@ -41,10 +41,10 @@ class CUDA_matrix
         Type* getValue() const {return _val;}
 
         // cumulative summation
-        void cumulate();
+        virtual void cumulate();
 
         // convolution
-        //void convolve(const Type** mask, const int& m_length, const int& m_width);
+        //virtual void convolve(const Type** mask, const int& m_length, const int& m_width);
 
     private:
         int num_rows;
