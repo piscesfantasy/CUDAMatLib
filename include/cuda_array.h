@@ -146,7 +146,7 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
     if (input.len()!=_len)
     {
         cerr<<"ERROR: can't inner product arrays with different length"<<endl;
-        return 0;
+        return Type();
     }
 
     Type *d_in1, *d_in2, *d_out;
@@ -211,9 +211,9 @@ Type CUDA_array<Type>::sum()
      * NOTE: One could also perform the reduction of the output vector
      * recursively and support any size input.
      ********************************************************************/
-    Type ans = 0;
-    for (int i=0; i<reduced_len; ++i)
-        ans+=reduced_val[i];
+    for (int i=1; i<reduced_len; ++i)
+        reduced_val[0]+=reduced_val[i];
+    Type ans = reduced_val[0];
 
     cudaFree(d_in);
     cudaFree(d_out);
