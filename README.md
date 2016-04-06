@@ -17,6 +17,6 @@ Installation & Test
 
 To-do
 -----
-[CUDA\_matrix]
+- Do cudaMalloc upon object construction?
 - Decide whether to incorporate archived functions (image processing related)
 - Figure out how to better incorporate different implementation of matrix multiplication
