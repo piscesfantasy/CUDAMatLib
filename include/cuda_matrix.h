@@ -39,6 +39,10 @@ class CUDA_matrix
         int getNumCols() const {return num_cols;}
         int size() const {return num_rows*num_cols;}
         Type* getValue() const {return _val;}
+        Type* getCUDAValue() const { return cuda_val; }
+        void cudaMemcpyToDevice() const { 
+            cudaMemcpy(cuda_val, _val, size()*sizeof(Type), cudaMemcpyHostToDevice);
+        }
 
         // cumulative summation
         //virtual void cumulate();
@@ -50,6 +54,7 @@ class CUDA_matrix
         int num_rows;
         int num_cols;
         Type *_val;
+        Type *cuda_val; // cuda memory
 };
 
 
@@ -87,7 +92,10 @@ template <typename Type>
 CUDA_matrix<Type>::~CUDA_matrix()
 {
     if (_val!=NULL)
+    {
         delete [] _val;
+        cudaFree(cuda_val);
+    }
 }
         
 template <typename Type>
@@ -95,8 +103,13 @@ void CUDA_matrix<Type>::init(const int& r, const int& c)
 {
     num_rows = r;
     num_cols = c;
-    if (_val!=NULL) delete [] _val;
+    if (_val!=NULL)
+    {
+        delete [] _val;
+        cudaFree(cuda_val);
+    }
     _val = new Type[num_rows*num_cols];
+    cudaMalloc((void**) &cuda_val, size()*sizeof(Type));
 }
 
 template <typename Type>
@@ -108,33 +121,21 @@ void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_m
         return;
     }
 
-    Type *d_in1;
-    Type *d_in2;
-    Type *d_out;
-
     out.init(in1.getNumRows(), in2.getNumCols());
-
-    cudaMalloc((void**) &d_in1, in1.size()*sizeof(Type));
-    cudaMalloc((void**) &d_in2, in1.size()*sizeof(Type));
-    cudaMalloc((void**) &d_out, out.size()*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_matrix_multiply");
 
-    cudaMemcpy(d_in1, in1.getValue(), in1.size()*sizeof(Type), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_in2, in2.getValue(), in2.size()*sizeof(Type), cudaMemcpyHostToDevice);
+    in1.cudaMemcpyToDevice();
+    in2.cudaMemcpyToDevice();
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_matrix_multiply");
 
     dim3 grid((out.getNumRows()-1)/BLKSIZE+1, (out.getNumCols()-1)/BLKSIZE+1, 1);
     dim3 block(BLKSIZE, BLKSIZE, 1);
 
-    matrixMultiply<<<grid, block>>>(d_in1, d_in2, d_out, in1.getNumRows(), in1.getNumCols(), in2.getNumRows(), in2.getNumCols(), out.getNumRows(), out.getNumCols());
+    matrixMultiply<<<grid, block>>>(in1.getCUDAValue(), in2.getCUDAValue(), out.getCUDAValue(), in1.getNumRows(), in1.getNumCols(), in2.getNumRows(), in2.getNumCols(), out.getNumRows(), out.getNumCols());
     cudaDeviceSynchronize();
 
-    cudaMemcpy(out.getValue(), d_out, out.size()*sizeof(Type), cudaMemcpyDeviceToHost);	
+    cudaMemcpy(out.getValue(), out.getCUDAValue(), out.size()*sizeof(Type), cudaMemcpyDeviceToHost);	
     cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_matrix_multiply");
-
-    cudaFree(d_in1);
-    cudaFree(d_in2);
-    cudaFree(d_out);
 
     return;
 }

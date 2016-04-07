@@ -20,6 +20,16 @@ using namespace std;
         } \
     } while (0)
 
+/**
+ * CUDA_array allocates both host and device memories upon construction. But
+ * cudaMemcpy is performed right before calculation.
+ * Pros:
+ *  - In operation intense cases, save time allocating new device memories.
+ *  - Can still overwrite values between operations.
+ * Cons:
+ *  - Don't keep too many CUDA_array objects alive, otherwise would cause
+ *    device memory starvation.
+*/
 template <typename Type>
 class CUDA_array
 {
@@ -28,13 +38,16 @@ class CUDA_array
         CUDA_array(Type* data, const int& l);
         CUDA_array(vector<Type>& data);
         CUDA_array(const CUDA_array<Type>& other);
-
         virtual ~CUDA_array();
 
         Type &operator[](const size_t idx){ return _val[idx]; }
         int len() const { return _len; }
         Type* getValue() const { return _val; }
+        Type* getCUDAValue() const { return cuda_val; }
         void setValue(Type* data);
+        void cudaMemcpyToDevice() const { 
+            cudaMemcpy(cuda_val, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
+        }
 
         // vector addition
         virtual void add(CUDA_array<Type> const&);
@@ -59,14 +72,16 @@ class CUDA_array
         //void convolve(const Type* mask, const int& m_len);
 
     private:
-        Type* _val;
         int _len;
+        Type *_val; // local memory
+        Type *cuda_val; // cuda memory
 };
 
 template <typename Type>
 CUDA_array<Type>::CUDA_array(const int& l) : _len(l)
 {
     _val = new Type[_len];
+    cudaMalloc((void**) &cuda_val, _len*sizeof(Type));
 }
 
 template <typename Type>
@@ -74,6 +89,7 @@ CUDA_array<Type>::CUDA_array(Type* data, const int& l) : _len(l)
 {
     _val = new Type[_len];
     setValue(data);
+    cudaMalloc((void**) &cuda_val, _len*sizeof(Type));
 }
 
 template <typename Type>
@@ -81,6 +97,7 @@ CUDA_array<Type>::CUDA_array(vector<Type>& data) : _len(data.size())
 {
     _val = new Type[_len];
     setValue(&data[0]);
+    cudaMalloc((void**) &cuda_val, _len*sizeof(Type));
 }
 
 template <typename Type>
@@ -89,13 +106,17 @@ CUDA_array<Type>::CUDA_array(const CUDA_array<Type>& other)
     _len = other.len();
     _val = new Type[_len];
     setValue(other.getValue());
+    cudaMalloc((void**) &cuda_val, _len*sizeof(Type));
 }
 
 template <typename Type>
 CUDA_array<Type>::~CUDA_array()
 {
     if (_val!=NULL)
+    {
         delete [] _val;
+        cudaFree(cuda_val);
+    }
 }
 
 template <typename Type>
@@ -114,29 +135,25 @@ void CUDA_array<Type>::add(CUDA_array<Type> const &input)
         return;
     }
 
-    Type *d_in1, *d_in2, *d_out;
+    Type *d_out;
 
-    cudaMalloc((void**) &d_in1, _len*sizeof(Type));
-    cudaMalloc((void**) &d_in2, _len*sizeof(Type));
     cudaMalloc((void**) &d_out, _len*sizeof(Type));
     cudaMemset(d_out, 0, _len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::add");
 
-    cudaMemcpy(d_in1, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_in2, input.getValue(), _len*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaMemcpyToDevice();
+    input.cudaMemcpyToDevice();
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::add");
 
     dim3 grid((_len-1)/BLKSIZE+1, 1, 1);
     dim3 block(BLKSIZE, 1, 1);
 
-    vecAdd<Type><<<grid, block>>>(d_in1, d_in2, d_out, _len);
+    vecAdd<Type><<<grid, block>>>(cuda_val, input.getCUDAValue(), d_out, _len);
     cudaDeviceSynchronize();
 
     cudaMemcpy(_val, d_out, _len*sizeof(Type), cudaMemcpyDeviceToHost);	
     cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_array<Type>::add");
 
-    cudaFree(d_in1);
-    cudaFree(d_in2);
     cudaFree(d_out);
 }
 
@@ -149,23 +166,21 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
         return Type();
     }
 
-    Type *d_in1, *d_in2, *d_out;
+    Type *d_out;
     Type *h_out = new Type[_len];
 
-    cudaMalloc((void**) &d_in1, _len*sizeof(Type));
-    cudaMalloc((void**) &d_in2, _len*sizeof(Type));
     cudaMalloc((void**) &d_out, _len*sizeof(Type));
     cudaMemset(d_out, 0, _len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::inner_prod");
 
-    cudaMemcpy(d_in1, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_in2, input.getValue(), _len*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaMemcpyToDevice();
+    input.cudaMemcpyToDevice();
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::inner_prod");
 
     dim3 grid((_len-1)/BLKSIZE+1, 1, 1);
     dim3 block(BLKSIZE, 1, 1);
 
-    vecProd<Type><<<grid, block>>>(d_in1, d_in2, d_out, _len);
+    vecProd<Type><<<grid, block>>>(cuda_val, input.getCUDAValue(), d_out, _len);
     cudaDeviceSynchronize();
 
     cudaMemcpy(h_out, d_out, _len*sizeof(Type), cudaMemcpyDeviceToHost);	
@@ -173,8 +188,6 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
 
     Type ans = CUDA_array<Type>(h_out, _len).sum();
 
-    cudaFree(d_in1);
-    cudaFree(d_in2);
     cudaFree(d_out);
     delete [] h_out;
 
@@ -184,26 +197,25 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
 template <typename Type>
 Type CUDA_array<Type>::sum()
 {
-    Type *d_in, *d_out;
+    Type *d_tmp;
     int reduced_len = _len / (BLKSIZE<<1);
     if (_len % (BLKSIZE<<1))
         reduced_len+=1;
     Type *reduced_val = new Type[reduced_len];
 
-    cudaMalloc((void **) &d_in, _len*sizeof(Type));
-    cudaMalloc((void **) &d_out, reduced_len*sizeof(Type));
-    cudaMemset(d_out, 0, reduced_len*sizeof(Type));
+    cudaMalloc((void **) &d_tmp, reduced_len*sizeof(Type));
+    cudaMemset(d_tmp, 0, reduced_len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::sum");
 
-    cudaMemcpy(d_in, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaMemcpy(cuda_val, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::sum");
 
     dim3 block(BLKSIZE, 1, 1);
     dim3 grid(reduced_len, 1, 1);
-    total<<<grid, block>>>(d_in, d_out, _len);
+    total<<<grid, block>>>(cuda_val, d_tmp, _len);
     cudaDeviceSynchronize();
 
-    cudaMemcpy(reduced_val, d_out, reduced_len*sizeof(Type), cudaMemcpyDeviceToHost);
+    cudaMemcpy(reduced_val, d_tmp, reduced_len*sizeof(Type), cudaMemcpyDeviceToHost);
     cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_array<Type>::sum");
 
     /********************************************************************
@@ -215,8 +227,7 @@ Type CUDA_array<Type>::sum()
         reduced_val[0]+=reduced_val[i];
     Type ans = reduced_val[0];
 
-    cudaFree(d_in);
-    cudaFree(d_out);
+    cudaFree(d_tmp);
     delete [] reduced_val;
 
     return ans;
@@ -225,23 +236,25 @@ Type CUDA_array<Type>::sum()
 template <typename Type>
 void CUDA_array<Type>::cumulate()
 {
-    Type *d_in, *d_out;
+    Type *d_tmp;
 
-    cudaMalloc((void**)&d_in, _len*sizeof(Type));
-    cudaMalloc((void**)&d_out, _len*sizeof(Type));
-    cudaMemcpy(d_in, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
-    cudaMemset(d_out, 0, _len*sizeof(Type));
+    cudaMalloc((void**)&d_tmp, _len*sizeof(Type));
+    cudaMemcpy(cuda_val, _val, _len*sizeof(Type), cudaMemcpyHostToDevice);
 
     dim3 block(BLKSIZE, 1, 1);
     dim3 grid((_len-1)/(BLKSIZE*2)+1, 1, 1);
-    scan<<<grid, block>>>(d_in, d_in, _len);
-    offset<<<grid, block>>>(d_in, d_out, _len);
+
+    cudaMemset(d_tmp, 0, _len*sizeof(Type));
+    scan<<<grid, block>>>(cuda_val, d_tmp, _len);
+    cudaDeviceSynchronize();
+
+    cudaMemset(cuda_val, 0, _len*sizeof(Type));
+    offset<<<grid, block>>>(d_tmp, cuda_val, _len);
     cudaDeviceSynchronize();
 	
-    cudaMemcpy(_val, d_out, _len*sizeof(Type), cudaMemcpyDeviceToHost);
+    cudaMemcpy(_val, cuda_val, _len*sizeof(Type), cudaMemcpyDeviceToHost);
 	
-    cudaFree(d_in);
-    cudaFree(d_out);
+    cudaFree(d_tmp);
 }
 
 /*
