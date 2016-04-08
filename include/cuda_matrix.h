@@ -28,6 +28,20 @@ class CUDA_matrix : public CUDA_object<Type>
         void setValue(Type** input);
         void setValue(const vector< vector<Type> >& input);
 
+        // proxy class
+        template <typename Type2>
+        class CUDA_matrix_row {
+            friend class CUDA_matrix<Type2>;
+            public:
+                Type2& operator[](const size_t c){return parent._val[offset+c];}
+            private:
+                CUDA_matrix_row(CUDA_matrix &p, int o) : parent(p), offset(o) {}
+                CUDA_matrix& parent;
+                int offset;
+        };
+
+        CUDA_matrix_row<Type> operator[](const size_t r) { return CUDA_matrix_row<Type>(*this, r*num_cols); }
+
         // cumulative summation
         //virtual void cumulate();
 
