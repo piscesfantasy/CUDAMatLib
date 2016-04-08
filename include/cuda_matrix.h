@@ -4,9 +4,6 @@
 #include "cuda_object.h"
 #include "cuda_matrix_kernel.h"
 
-#define SEGSIZE 256
-#define BLKSIZE 16
-
 using namespace std;
 
 template <typename Type>
@@ -132,10 +129,10 @@ void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_m
     in2.cudaMemcpyToDevice();
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_matrix_multiply");
 
-    dim3 grid((out.getNumRows()-1)/BLKSIZE+1, (out.getNumCols()-1)/BLKSIZE+1, 1);
-    dim3 block(BLKSIZE, BLKSIZE, 1);
+    dim3 grid((out.getNumRows()-1)/BLKSIZE_2D+1, (out.getNumCols()-1)/BLKSIZE_2D+1, 1);
+    dim3 block(BLKSIZE_2D, BLKSIZE_2D, 1);
 
-    matrixMultiply<<<grid, block>>>(in1.getCUDAValue(), in2.getCUDAValue(), out.getCUDAValue(), in1.getNumRows(), in1.getNumCols(), in2.getNumRows(), in2.getNumCols(), out.getNumRows(), out.getNumCols());
+    matrixMultiplyShared<<<grid, block>>>(in1.getCUDAValue(), in2.getCUDAValue(), out.getCUDAValue(), in1.getNumRows(), in1.getNumCols(), in2.getNumRows(), in2.getNumCols(), out.getNumRows(), out.getNumCols());
     cudaDeviceSynchronize();
 
     cudaMemcpy(out.getValue(), out.getCUDAValue(), out.size()*sizeof(Type), cudaMemcpyDeviceToHost);	

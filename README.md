@@ -17,5 +17,4 @@ Installation & Test
 
 To-do
 -----
-- Test the speed of different implementation of matrix multiplication
-- Decide whether to incorporate archived functions (image processing related)
+- Incorporate archived functions (image processing related)

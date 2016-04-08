@@ -5,7 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-// Compute C = A * B
+#define BLKSIZE_2D 16
 
 template <typename Type>
 __global__ void matrixMultiply(Type *A, Type *B, Type *C, int numARows,
@@ -35,8 +35,8 @@ __global__ void matrixMultiplyShared(Type *A, Type *B, Type *C, int numARows,
                                      int numBColumns, int numCRows,
                                      int numCColumns)
 {
-	__shared__ Type tmpA[16][16];
-  	__shared__ Type tmpB[16][16];
+	__shared__ Type tmpA[BLKSIZE_2D][BLKSIZE_2D];
+  	__shared__ Type tmpB[BLKSIZE_2D][BLKSIZE_2D];
 
   	// The element in C a certain thread is in charge of	
   	int C_x = blockIdx.x*blockDim.x + threadIdx.x;
@@ -44,7 +44,7 @@ __global__ void matrixMultiplyShared(Type *A, Type *B, Type *C, int numARows,
 	Type tmp_c_element = 0;
 
  	// Load tile_idx-th tile from A and B needed to compute current block in C
-	for (int tile_idx=0; tile_idx<(numBRows-1)/16+1; ++tile_idx) {
+	for (int tile_idx=0; tile_idx<(numBRows-1)/BLKSIZE_2D+1; ++tile_idx) {
 		// Load the element in A and B a certain thread is in charge of
 		int A_x = C_x;
 		int A_y = tile_idx*blockDim.y + threadIdx.y;
@@ -62,7 +62,7 @@ __global__ void matrixMultiplyShared(Type *A, Type *B, Type *C, int numARows,
 		
 		// Calculate the element in C a certain thread is in charge of
 		if (C_x < numCRows && C_y < numCColumns) {
-			for (int i=0; i<16; ++i)
+			for (int i=0; i<BLKSIZE_2D; ++i)
 				tmp_c_element += tmpA[threadIdx.x][i]*tmpB[i][threadIdx.y];
 		}
 		__syncthreads();
