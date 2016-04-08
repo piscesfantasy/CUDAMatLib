@@ -1,48 +1,32 @@
 #ifndef CUDA_MATRIX_H
 #define CUDA_MATRIX_H
 
+#include "cuda_object.h"
 #include "cuda_matrix_kernel.h"
-#include <stdio.h>
-#include <iostream>
-#include <vector>
 
 #define SEGSIZE 256
 #define BLKSIZE 16
 
 using namespace std;
 
-#define cudaCheckErrors(msg) \
-    do { \
-        cudaError_t __err = cudaGetLastError(); \
-        if (__err != cudaSuccess) { \
-            fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \
-                msg, cudaGetErrorString(__err), \
-                __FILE__, __LINE__); \
-            fprintf(stderr, "*** FAILED - ABORTING\n"); \
-            exit(1); \
-        } \
-    } while (0)
-
 template <typename Type>
-class CUDA_matrix
+class CUDA_matrix : public CUDA_object<Type>
 {
     public:
-        CUDA_matrix() {_val = NULL;}
-        CUDA_matrix(const vector< vector<Type> >& input);
+        CUDA_matrix(){}
+        CUDA_matrix(const int& _r, const int& _c);
         CUDA_matrix(Type** input, const int& _r, const int& _c);
+        CUDA_matrix(const vector< vector<Type> >& input);
         CUDA_matrix(const CUDA_matrix<Type>& other);
         virtual ~CUDA_matrix();
 
-        void init(const int& r, const int& c);
-
+        int size() const {return num_rows*num_cols;}
         int getNumRows() const {return num_rows;}
         int getNumCols() const {return num_cols;}
-        int size() const {return num_rows*num_cols;}
-        Type* getValue() const {return _val;}
-        Type* getCUDAValue() const { return cuda_val; }
-        void cudaMemcpyToDevice() const { 
-            cudaMemcpy(cuda_val, _val, size()*sizeof(Type), cudaMemcpyHostToDevice);
-        }
+
+        void resize(const int& r, const int& c);
+        void setValue(Type** input);
+        void setValue(const vector< vector<Type> >& input);
 
         // cumulative summation
         //virtual void cumulate();
@@ -53,63 +37,69 @@ class CUDA_matrix
     private:
         int num_rows;
         int num_cols;
-        Type *_val;
-        Type *cuda_val; // cuda memory
 };
 
-
 template <typename Type>
-CUDA_matrix<Type>::CUDA_matrix(const vector< vector<Type> >& input)
+CUDA_matrix<Type>::CUDA_matrix(const int& _r, const int& _c) : num_rows(_r), num_cols(_c)
 {
-    _val = NULL;
-    init(input.size(), input[0].size());
-    for (int r=0; r<num_rows; ++r)
-        for (int c=0; c<num_cols; ++c)
-            _val[r*num_cols+c] = input[r][c];
+    this->reset();
 }
 
 template <typename Type>
-CUDA_matrix<Type>::CUDA_matrix(Type** input, const int& _r, const int& _c)
+CUDA_matrix<Type>::CUDA_matrix(Type** input, const int& _r, const int& _c) : num_rows(_r), num_cols(_c)
 {
-    _val = NULL;
-    init(_r, _c);
-    for (int r=0; r<num_rows; ++r)
-        for (int c=0; c<num_cols; ++c)
-            _val[r*num_cols+c] = input[r][c];
+    this->reset();
+    setValue(input);
 }
 
 template <typename Type>
-CUDA_matrix<Type>::CUDA_matrix(const CUDA_matrix<Type>& other)
+CUDA_matrix<Type>::CUDA_matrix(const vector< vector<Type> >& input): num_rows(input.size()), num_cols(input[0].size())
 {
-    _val = NULL;
-    init(other.getNumRows(), other.getNumCols());
+    this->reset();
+    setValue(input);
+}
+
+template <typename Type>
+CUDA_matrix<Type>::CUDA_matrix(const CUDA_matrix<Type>& other): num_rows(other.getNumRows()), num_cols(other.getNumCols())
+{
+    this->reset();
     for (int r=0; r<num_rows; ++r)
         for (int c=0; c<num_cols; ++c)
-            _val[r*num_cols+c] = other.getValue()[r*num_cols+c];
+            this->_val[r*num_cols+c] = other.getValue()[r*num_cols+c];
 }
 
 template <typename Type>
 CUDA_matrix<Type>::~CUDA_matrix()
 {
-    if (_val!=NULL)
+    if (this->_val!=NULL)
     {
-        delete [] _val;
-        cudaFree(cuda_val);
+        delete [] this->_val;
+        cudaFree(this->cuda_val);
     }
 }
         
 template <typename Type>
-void CUDA_matrix<Type>::init(const int& r, const int& c)
+void CUDA_matrix<Type>::resize(const int& r, const int& c)
 {
     num_rows = r;
     num_cols = c;
-    if (_val!=NULL)
-    {
-        delete [] _val;
-        cudaFree(cuda_val);
-    }
-    _val = new Type[num_rows*num_cols];
-    cudaMalloc((void**) &cuda_val, size()*sizeof(Type));
+    this->reset();
+}
+        
+template <typename Type>
+void CUDA_matrix<Type>::setValue(Type** input)
+{
+    for (int r=0; r<num_rows; ++r)
+        for (int c=0; c<num_cols; ++c)
+            this->_val[r*num_cols+c] = input[r][c];
+}
+
+template <typename Type>
+void CUDA_matrix<Type>::setValue(const vector< vector<Type> >& input)
+{
+    for (int r=0; r<num_rows; ++r)
+        for (int c=0; c<num_cols; ++c)
+            this->_val[r*num_cols+c] = input[r][c];
 }
 
 template <typename Type>
@@ -121,7 +111,7 @@ void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_m
         return;
     }
 
-    out.init(in1.getNumRows(), in2.getNumCols());
+    out.resize(in1.getNumRows(), in2.getNumCols());
     cudaCheckErrors("cudaMalloc @ CUDA_matrix_multiply");
 
     in1.cudaMemcpyToDevice();

@@ -19,7 +19,7 @@ class CUDA_array : public CUDA_object<Type>
 
         int size() const { return _len; }
 
-        void resize(const int& l);
+        void init(const int& l);
         void setValue(Type* input);
         void setValue(const vector<Type>& input);
 
@@ -70,7 +70,7 @@ template <typename Type>
 CUDA_array<Type>::CUDA_array(vector<Type>& input) : _len(input.size())
 {
     this->_val = new Type[_len];
-    setValue(input);
+    setValue(&input[0]);
     cudaMalloc((void**) &(this->cuda_val), _len*sizeof(Type));
 }
 
@@ -94,7 +94,7 @@ CUDA_array<Type>::~CUDA_array()
 }
 
 template <typename Type>
-void CUDA_array<Type>::resize(const int& l)
+void CUDA_array<Type>::init(const int& l)
 {
     _len = l;
     this->reset();
@@ -102,13 +102,6 @@ void CUDA_array<Type>::resize(const int& l)
 
 template <typename Type>
 void CUDA_array<Type>::setValue(Type* input)
-{
-    for (int i=0; i<_len; ++i)
-        this->_val[i] = input[i];
-}
-
-template <typename Type>
-void CUDA_array<Type>::setValue(const vector<Type>& input)
 {
     for (int i=0; i<_len; ++i)
         this->_val[i] = input[i];

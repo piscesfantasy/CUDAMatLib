@@ -17,6 +17,5 @@ Installation & Test
 
 To-do
 -----
-- Create a common parent class CUDA\_object for CUDA\_array and CUDA\_matrix
 - Test the speed of different implementation of matrix multiplication
 - Decide whether to incorporate archived functions (image processing related)
