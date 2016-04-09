@@ -14,7 +14,3 @@ Installation & Test
 * Use the header files in include/ folder directly.
 * Refer to src/\*.cu for use cases.
 * `make` to create binaries in bin/ for testing.
-
-To-do
------
-- Incorporate archived functions (image processing related)
