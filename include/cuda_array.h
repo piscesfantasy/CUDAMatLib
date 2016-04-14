@@ -10,6 +10,7 @@ template <typename Type>
 class CUDA_array : public CUDA_object<Type>
 {
     public:
+        // Constructor/Destructor
         CUDA_array(){}
         CUDA_array(const int& l);
         CUDA_array(Type* input, const int& l);
@@ -17,31 +18,21 @@ class CUDA_array : public CUDA_object<Type>
         CUDA_array(const CUDA_array<Type>& other);
         virtual ~CUDA_array();
 
-        int size() const { return _len; }
+        // Set/Get
+        virtual int size() const { return _len; }
+        virtual void resize(const int& l);
+        virtual void setValue(Type* input);
+        virtual void setValue(const vector<Type>& input);
+        virtual Type &operator[](const size_t idx){ return this->_val[idx]; }
 
-        void resize(const int& l);
-        void setValue(Type* input);
-        void setValue(const vector<Type>& input);
-
-        Type &operator[](const size_t idx){ return this->_val[idx]; }
-
-        // vector addition
+        // Operations
         virtual void add(CUDA_array<Type> const&);
-
-        // vector dot product
         virtual Type inner_prod(CUDA_array<Type> const&);
-
-        // calculate total
         virtual Type sum();
-
-        // calculate max
+        //virtual Type min();
         //virtual Type max();
-
-        // cumulative summation
         virtual void cumulate();
-
-        // convolution
-        //void convolve(const Type* mask, const int& m_len);
+        //virtual void convolve(const Type* mask, const int& m_len);
 
     private:
         int _len;

@@ -10,20 +10,13 @@ template <typename Type>
 class CUDA_matrix : public CUDA_object<Type>
 {
     public:
+        // Constructor/Destructor
         CUDA_matrix(){}
         CUDA_matrix(const int& _r, const int& _c);
         CUDA_matrix(Type** input, const int& _r, const int& _c);
         CUDA_matrix(const vector< vector<Type> >& input);
         CUDA_matrix(const CUDA_matrix<Type>& other);
         virtual ~CUDA_matrix();
-
-        int size() const {return num_rows*num_cols;}
-        int getNumRows() const {return num_rows;}
-        int getNumCols() const {return num_cols;}
-
-        void resize(const int& r, const int& c);
-        void setValue(Type** input);
-        void setValue(const vector< vector<Type> >& input);
 
         // proxy class
         template <typename Type2>
@@ -37,12 +30,20 @@ class CUDA_matrix : public CUDA_object<Type>
                 int offset;
         };
 
-        CUDA_matrix_row<Type> operator[](const size_t r) { return CUDA_matrix_row<Type>(*this, r*num_cols); }
+        // Set/Get
+        virtual int size() const {return num_rows*num_cols;}
+        virtual int getNumRows() const {return num_rows;}
+        virtual int getNumCols() const {return num_cols;}
+        virtual void resize(const int& r, const int& c);
+        virtual void setValue(Type** input);
+        virtual void setValue(const vector< vector<Type> >& input);
+        virtual CUDA_matrix_row<Type> operator[](const size_t r) { return CUDA_matrix_row<Type>(*this, r*num_cols); }
 
-        // cumulative summation
+        // Operations
+        //virtual Type sum();
+        //virtual Type min();
+        //virtual Type max();
         //virtual void cumulate();
-
-        // convolution
         //virtual void convolve(const Type** mask, const int& m_length, const int& m_width);
 
     private:
