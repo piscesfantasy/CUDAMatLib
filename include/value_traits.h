@@ -59,24 +59,31 @@ template<>
 class ValueTraits<float> {
     public:
         typedef float ValueType;
-        static ValueType MIN;
-        static ValueType MAX;
+        static ValueType const MIN;
+        static ValueType const MAX;
 };
 
 template<>
 class ValueTraits<double> {
     public:
         typedef double ValueType;
-        static ValueType MIN;
-        static ValueType MAX;
+        static ValueType const MIN;
+        static ValueType const MAX;
 };
 
 template<>
 class ValueTraits<long double> {
     public:
         typedef long double ValueType;
-        static ValueType MIN;
-        static ValueType MAX;
+        static ValueType const MIN;
+        static ValueType const MAX;
 };
+
+const float ValueTraits<float>::MIN = FLT_MIN;
+const float ValueTraits<float>::MAX = FLT_MAX;
+const double ValueTraits<double>::MIN = DBL_MIN;
+const double ValueTraits<double>::MAX = DBL_MAX;
+const long double ValueTraits<long double>::MIN = LDBL_MIN;
+const long double ValueTraits<long double>::MAX = LDBL_MAX;
 
 #endif
