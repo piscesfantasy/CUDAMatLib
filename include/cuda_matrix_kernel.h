@@ -72,4 +72,36 @@ __global__ void matrixMultiplyShared(Type *A, Type *B, Type *C, int numARows,
 		C[C_x*numCColumns+C_y] = tmp_c_element;
 }
 
+template <typename Type>
+__global__ void Convolution(Type *image, int imgWidth, int imgHeight, const Type * __restrict__ mask, int mLength, int mWidth, int tLength, int tWidth, Type *output)
+{
+	// Calculate all indices for later use
+	int oIdx_x = blockIdx.x*tWidth + threadIdx.x;
+	int oIdx_y = blockIdx.y*tLength + threadIdx.y;
+	int iIdx_x = oIdx_x-2;
+	int iIdx_y = oIdx_y-2;
+	
+	__shared__ Type img[BLKSIZE_2D][BLKSIZE_2D];
+	
+    // Load image into shared memory	
+    if (iIdx_x>=0 && iIdx_x<imgWidth && iIdx_y>=0 && iIdx_y<imgHeight)
+        img[threadIdx.x][threadIdx.y] = image[iIdx_y*imgWidth+iIdx_x];
+    else
+        img[threadIdx.x][threadIdx.y] = 0.0;
+    __syncthreads();
+
+    Type tmp = 0;
+    if (threadIdx.x<tWidth && threadIdx.y<tLength)
+    {
+        // Calculate convolution
+        for (int offset_x=0; offset_x<mWidth; ++offset_x)
+            for (int offset_y=0; offset_y<mLength; ++offset_y)
+                tmp+=img[threadIdx.x+offset_x][threadIdx.y+offset_y]*mask[offset_y*mWidth+offset_x];
+        // Output
+        if (oIdx_x<imgWidth && oIdx_y<imgHeight)
+            output[oIdx_y*imgWidth+oIdx_x] = tmp;
+    }
+    __syncthreads();
+}
+
 #endif
