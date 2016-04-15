@@ -64,11 +64,11 @@ __global__ void getMin(Type *input, Type *output, int len)
     if (inputIdx < len)
         tmp[2*threadIdx.x] = input[inputIdx];
     else
-        tmp[2*threadIdx.x] = ValueTraits<Type>::MIN;
+        tmp[2*threadIdx.x] = ValueTraits<Type>::MAX;
     if (inputIdx+1 < len)
         tmp[2*threadIdx.x+1] = input[inputIdx+1];
     else
-        tmp[2*threadIdx.x+1] = ValueTraits<Type>::MIN;
+        tmp[2*threadIdx.x+1] = ValueTraits<Type>::MAX;
 
     //@@ Traverse the reduction tree
     for (int stride=BLKSIZE_1D; stride>=1; stride/=2)
@@ -95,11 +95,11 @@ __global__ void getMax(Type *input, Type *output, int len)
     if (inputIdx < len)
         tmp[2*threadIdx.x] = input[inputIdx];
     else
-        tmp[2*threadIdx.x] = ValueTraits<Type>::MAX;
+        tmp[2*threadIdx.x] = ValueTraits<Type>::MIN;
     if (inputIdx+1 < len)
         tmp[2*threadIdx.x+1] = input[inputIdx+1];
     else
-        tmp[2*threadIdx.x+1] = ValueTraits<Type>::MAX;
+        tmp[2*threadIdx.x+1] = ValueTraits<Type>::MIN;
 
     //@@ Traverse the reduction tree
     for (int stride=BLKSIZE_1D; stride>=1; stride/=2)
