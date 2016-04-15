@@ -29,10 +29,14 @@ class CUDA_array : public CUDA_object<Type>
         virtual void add(CUDA_array<Type> const&);
         virtual Type inner_prod(CUDA_array<Type> const&);
         virtual Type sum();
-        //virtual Type min();
-        //virtual Type max();
+        virtual Type min();
+        virtual Type max();
         virtual void cumulate();
         //virtual void convolve(const Type* mask, const int& m_len);
+
+    protected:
+        // Template method for all reduce operations (sum, min, max et. al.)
+        virtual Type reduce(void (*f)(Type*, Type*, int));
 
     private:
         int _len;
@@ -172,38 +176,72 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
 template <typename Type>
 Type CUDA_array<Type>::sum()
 {
-    Type *d_tmp;
+    CUDA_array<Type>::reduce(total);
+}
+
+template <typename Type>
+Type CUDA_array<Type>::min()
+{
+    CUDA_array<Type>::reduce(getMin);
+}
+
+template <typename Type>
+Type CUDA_array<Type>::max()
+{
+    CUDA_array<Type>::reduce(getMax);
+}
+
+template <typename Type>
+Type CUDA_array<Type>::reduce(void (*reducer)(Type*, Type*, int))
+{
+    Type *d_tmp1, *d_tmp2;
     int reduced_len = _len / (BLKSIZE_1D<<1);
     if (_len % (BLKSIZE_1D<<1))
         reduced_len+=1;
-    Type *reduced_val = new Type[reduced_len];
 
-    cudaMalloc((void **) &d_tmp, reduced_len*sizeof(Type));
-    cudaMemset(d_tmp, 0, reduced_len*sizeof(Type));
+    cudaMalloc((void **) &d_tmp1, _len*sizeof(Type));
+    cudaMemset(d_tmp1, 0, _len*sizeof(Type));
+    cudaMalloc((void **) &d_tmp2, _len*sizeof(Type));
+    cudaMemset(d_tmp2, 0, _len*sizeof(Type));
     cudaCheckErrors("cudaMalloc @ CUDA_array<Type>::sum");
-
-    cudaMemcpy(this->cuda_val, this->_val, _len*sizeof(Type), cudaMemcpyHostToDevice);
-    cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::sum");
 
     dim3 block(BLKSIZE_1D, 1, 1);
     dim3 grid(reduced_len, 1, 1);
-    total<<<grid, block>>>(this->cuda_val, d_tmp, _len);
+
+    // 1st reduce
+    cudaMemcpy(this->cuda_val, this->_val, _len*sizeof(Type), cudaMemcpyHostToDevice);
+    cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_array<Type>::sum");
+    reducer<<<grid, block>>>(this->cuda_val, d_tmp1, _len);
     cudaDeviceSynchronize();
 
-    cudaMemcpy(reduced_val, d_tmp, reduced_len*sizeof(Type), cudaMemcpyDeviceToHost);
+    // iteratively reduce until length=1
+    while (reduced_len>1)
+    {
+        reducer<<<grid, block>>>(d_tmp1, d_tmp2, reduced_len);
+        cudaDeviceSynchronize();
+        if (reduced_len==1)
+        {
+            d_tmp1 = d_tmp2;
+            break;
+        }
+        reduced_len /= (BLKSIZE_1D<<1);
+        if (_len % (BLKSIZE_1D<<1))
+            reduced_len+=1;
+        reducer<<<grid, block>>>(d_tmp2, d_tmp1, reduced_len);
+        cudaDeviceSynchronize();
+        reduced_len /= (BLKSIZE_1D<<1);
+        if (_len % (BLKSIZE_1D<<1))
+            reduced_len+=1;
+    }
+
+    Type *_ans = new Type[1];
+    cudaMemcpy(_ans, d_tmp1, sizeof(Type), cudaMemcpyDeviceToHost);
     cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_array<Type>::sum");
+    Type ans = _ans[0];
 
-    /********************************************************************
-     * Reduce output vector on the host
-     * NOTE: One could also perform the reduction of the output vector
-     * recursively and support any size input.
-     ********************************************************************/
-    for (int i=1; i<reduced_len; ++i)
-        reduced_val[0]+=reduced_val[i];
-    Type ans = reduced_val[0];
-
-    cudaFree(d_tmp);
-    delete [] reduced_val;
+    cudaFree(d_tmp1);
+    cudaFree(d_tmp2);
+    delete [] _ans;
 
     return ans;
 }
