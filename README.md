@@ -13,4 +13,4 @@ Installation & Test
 -------------------
 * Use the header files in include/ folder directly.
 * Refer to src/\*.cu for use cases.
-* `make` to create binaries in bin/ for testing.
+* `make` to create binaries in test/ for testing.

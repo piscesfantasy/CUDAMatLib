@@ -40,6 +40,8 @@ class CUDA_matrix : public CUDA_object<Type>
         virtual CUDA_matrix_row<Type> operator[](const size_t r) { return CUDA_matrix_row<Type>(*this, r*num_cols); }
 
         // Operations
+        template <typename Type2>
+        friend void CUDA_matrix_multiply(CUDA_matrix<Type2> &in1, CUDA_matrix<Type2> &in2, CUDA_matrix<Type2> &out);
         //virtual Type sum();
         //virtual Type min();
         //virtual Type max();
@@ -117,26 +119,26 @@ void CUDA_matrix<Type>::setValue(const vector< vector<Type> >& input)
 template <typename Type>
 void CUDA_matrix_multiply(CUDA_matrix<Type> &in1, CUDA_matrix<Type> &in2, CUDA_matrix<Type> &out)
 {
-    if (in1.getNumCols()!=in2.getNumRows())
+    if (in1.num_cols!=in2.num_rows)
     {
         cerr<<"ERROR: can't multiply matrices, number of row and column doesn't match"<<endl;
         return;
     }
 
-    out.resize(in1.getNumRows(), in2.getNumCols());
+    out.resize(in1.num_rows, in2.num_cols);
     cudaCheckErrors("cudaMalloc @ CUDA_matrix_multiply");
 
     in1.cudaMemcpyToDevice();
     in2.cudaMemcpyToDevice();
     cudaCheckErrors("cudaMemcpyHostToDevice @ CUDA_matrix_multiply");
 
-    dim3 grid((out.getNumRows()-1)/BLKSIZE_2D+1, (out.getNumCols()-1)/BLKSIZE_2D+1, 1);
+    dim3 grid((out.num_rows-1)/BLKSIZE_2D+1, (out.num_cols-1)/BLKSIZE_2D+1, 1);
     dim3 block(BLKSIZE_2D, BLKSIZE_2D, 1);
 
-    matrixMultiplyShared<<<grid, block>>>(in1.getCUDAValue(), in2.getCUDAValue(), out.getCUDAValue(), in1.getNumRows(), in1.getNumCols(), in2.getNumRows(), in2.getNumCols(), out.getNumRows(), out.getNumCols());
+    matrixMultiplyShared<<<grid, block>>>(in1.cuda_val, in2.cuda_val, out.cuda_val, in1.num_rows, in1.num_cols, in2.num_rows, in2.num_cols, out.num_rows, out.num_cols);
     cudaDeviceSynchronize();
 
-    cudaMemcpy(out.getValue(), out.getCUDAValue(), out.size()*sizeof(Type), cudaMemcpyDeviceToHost);	
+    cudaMemcpy(out._val, out.cuda_val, out.size()*sizeof(Type), cudaMemcpyDeviceToHost);	
     cudaCheckErrors("cudaMemcpyDeviceToHost @ CUDA_matrix_multiply");
 
     return;
