@@ -9,7 +9,7 @@ SRC=src
 OBJ=obj
 BIN=bin
 
-SOURCES=test_array.cu test_mat.cu
+SOURCES=value_traits.cc # test_array.cu test_mat.cu
 EXECUTABLES=test_array test_mat
 
 OBJECTS:=$(addprefix $(OBJ)/, $(addsuffix .o,$(basename $(SOURCES))))
@@ -18,9 +18,9 @@ vpath %.h include/
 vpath %.cc src/
 vpath %.cu src/
 
-.PHONY: dir exe clean
+.PHONY: dir clean
 
-all: dir test_array test_mat
+all: dir $(OBJECTS) test_array test_mat
 
 dir:
 	mkdir -p $(BIN) $(OBJ)

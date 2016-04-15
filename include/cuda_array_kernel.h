@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "value_traits.h"
 
 #define BLKSIZE_1D 256
 
@@ -45,6 +46,68 @@ __global__ void total(Type *input, Type *output, int len)
         __syncthreads();
         if (threadIdx.x<stride)
             tmp[threadIdx.x]+=tmp[threadIdx.x+stride];
+    }	
+
+    //@@ Write the computed sum of the block to the output vector at the 
+    //@@ correct index
+    __syncthreads();
+    output[blockIdx.x] = tmp[0];
+}
+
+template <typename Type>
+__global__ void getMin(Type *input, Type *output, int len)
+{
+    __shared__ Type tmp[BLKSIZE_1D*2];
+
+    //@@ Load a segment of the input vector into shared memory
+    int inputIdx = 2*(blockIdx.x*blockDim.x+threadIdx.x);
+    if (inputIdx < len)
+        tmp[2*threadIdx.x] = input[inputIdx];
+    else
+        tmp[2*threadIdx.x] = ValueTraits<Type>::MIN;
+    if (inputIdx+1 < len)
+        tmp[2*threadIdx.x+1] = input[inputIdx+1];
+    else
+        tmp[2*threadIdx.x+1] = ValueTraits<Type>::MIN;
+
+    //@@ Traverse the reduction tree
+    for (int stride=BLKSIZE_1D; stride>=1; stride/=2)
+    {
+        __syncthreads();
+        if (threadIdx.x<stride)
+            if (tmp[threadIdx.x] > tmp[threadIdx.x+stride])
+                tmp[threadIdx.x] = tmp[threadIdx.x+stride];
+    }	
+
+    //@@ Write the computed sum of the block to the output vector at the 
+    //@@ correct index
+    __syncthreads();
+    output[blockIdx.x] = tmp[0];
+}
+
+template <typename Type>
+__global__ void getMax(Type *input, Type *output, int len)
+{
+    __shared__ Type tmp[BLKSIZE_1D*2];
+
+    //@@ Load a segment of the input vector into shared memory
+    int inputIdx = 2*(blockIdx.x*blockDim.x+threadIdx.x);
+    if (inputIdx < len)
+        tmp[2*threadIdx.x] = input[inputIdx];
+    else
+        tmp[2*threadIdx.x] = ValueTraits<Type>::MAX;
+    if (inputIdx+1 < len)
+        tmp[2*threadIdx.x+1] = input[inputIdx+1];
+    else
+        tmp[2*threadIdx.x+1] = ValueTraits<Type>::MAX;
+
+    //@@ Traverse the reduction tree
+    for (int stride=BLKSIZE_1D; stride>=1; stride/=2)
+    {
+        __syncthreads();
+        if (threadIdx.x<stride)
+            if (tmp[threadIdx.x] < tmp[threadIdx.x+stride])
+                tmp[threadIdx.x] = tmp[threadIdx.x+stride];
     }	
 
     //@@ Write the computed sum of the block to the output vector at the 

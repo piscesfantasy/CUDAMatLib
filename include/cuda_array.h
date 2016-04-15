@@ -29,10 +29,14 @@ class CUDA_array : public CUDA_object<Type>
         virtual void add(CUDA_array<Type> const&);
         virtual Type inner_prod(CUDA_array<Type> const&);
         virtual Type sum();
-        //virtual Type min();
-        //virtual Type max();
+        virtual Type min();
+        virtual Type max();
         virtual void cumulate();
         //virtual void convolve(const Type* mask, const int& m_len);
+
+    protected:
+        // Template method for all reduce operations (sum, min, max et. al.)
+        virtual Type reduce(void (*f)(Type*, Type*, int));
 
     private:
         int _len;
@@ -172,6 +176,24 @@ Type CUDA_array<Type>::inner_prod(CUDA_array<Type> const &input)
 template <typename Type>
 Type CUDA_array<Type>::sum()
 {
+    CUDA_array<Type>::reduce(total);
+}
+
+template <typename Type>
+Type CUDA_array<Type>::min()
+{
+    CUDA_array<Type>::reduce(getMin);
+}
+
+template <typename Type>
+Type CUDA_array<Type>::max()
+{
+    CUDA_array<Type>::reduce(getMax);
+}
+
+template <typename Type>
+Type CUDA_array<Type>::reduce(void (*reducer)(Type*, Type*, int))
+{
     Type *d_tmp;
     int reduced_len = _len / (BLKSIZE_1D<<1);
     if (_len % (BLKSIZE_1D<<1))
@@ -187,7 +209,7 @@ Type CUDA_array<Type>::sum()
 
     dim3 block(BLKSIZE_1D, 1, 1);
     dim3 grid(reduced_len, 1, 1);
-    total<<<grid, block>>>(this->cuda_val, d_tmp, _len);
+    reducer<<<grid, block>>>(this->cuda_val, d_tmp, _len);
     cudaDeviceSynchronize();
 
     cudaMemcpy(reduced_val, d_tmp, reduced_len*sizeof(Type), cudaMemcpyDeviceToHost);
