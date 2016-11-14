@@ -1,5 +1,7 @@
 #include "cuda_array.h"
+#include <algorithm>
 #include <iostream>
+#include <vector>
 #include <cstdlib>
 #include <ctime>
 
@@ -77,9 +79,13 @@ int test(const string& _type, const int& len, Type (*get_rand)())
         compare(cuda_1[i], array_1[i], _type, "CUDA_array::add");
 
     // Test sum
-    Type sum1 = cuda_2.sum();
-    Type sum2 = simple_sum(array_2, len);
-    compare(sum1, sum2, _type, "CUDA_array::sum");
+    compare(cuda_2.sum(), simple_sum(array_2, len), _type, "CUDA_array::sum");
+
+    // Test min
+    compare(cuda_1.min(), *min_element(array_1.begin(), array_1.end()), _type, "CUDA_array::min");
+
+    // Test max
+    compare(cuda_1.max(), *max_element(array_1.begin(), array_1.end()), _type, "CUDA_array::max");
 
     // Test inner product
     Type inner_prod1 = cuda_2.inner_prod(cuda_3);
