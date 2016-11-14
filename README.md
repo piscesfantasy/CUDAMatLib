@@ -8,6 +8,11 @@ Requirements
 * g++ 4.2 or higher
 * NVIDIA VGA card
 * [NVIDIA CUDA toolkit](https://developer.nvidia.com/cuda-downloads) (>= CUDA 5.0)
+    * After installation, add the following 2 lines in ~/.bashrc
+```
+export LD_LIBRARY_PATH=/usr/local/cuda/lib
+export PATH=$PATH:/usr/local/cuda/bin
+```
 
 Installation & Test
 -------------------
